@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PETAL Insights — Report Decoder</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400&family=Outfit:wght@200;300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#070c11;--surface:#0d1419;--border:rgba(255,255,255,0.08);--text:#f2f4f7;--text-dim:rgba(242,244,247,0.72);--text-muted:rgba(242,244,247,0.42);--accent:#c8a96e;--f1:#7eb8d4;--f2:#8fd4b0;--f3:#d4a8b0;--alert:#e05c5c;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);}
+.scaler{width:800px;height:600px;transform-origin:top left;position:absolute;top:0;left:0;}
+.canvas{width:800px;height:600px;background:var(--bg);font-family:'Outfit',sans-serif;display:flex;flex-direction:column;position:relative;overflow:hidden;}
+.canvas::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 700px 400px at 50% 60%,rgba(200,169,110,0.025) 0%,transparent 70%);pointer-events:none;}
+.top-bar{height:44px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;}
+.series-tag{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.2em;color:var(--accent);text-transform:uppercase;}
+.top-title{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:300;color:var(--text);}
+.top-instruction{font-family:'DM Mono',monospace;font-size:9px;color:var(--text-muted);letter-spacing:0.1em;}
+.main{flex:1;display:flex;padding:14px 20px 10px;gap:18px;}
+/* LEFT: simulated report */
+.report-col{width:300px;flex-shrink:0;display:flex;flex-direction:column;gap:0;}
+.report-card{border:1px solid var(--border);background:rgba(255,255,255,0.018);flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.report-header{padding:10px 14px;border-bottom:1px solid var(--border);}
+.report-title{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.18em;color:var(--accent);text-transform:uppercase;margin-bottom:3px;}
+.report-meta{font-family:'DM Mono',monospace;font-size:8px;color:var(--text-muted);}
+.report-body{padding:10px 14px;flex:1;display:flex;flex-direction:column;gap:6px;}
+.report-section-title{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;margin-top:4px;margin-bottom:2px;}
+.report-finding{padding:8px 10px;border:1px solid var(--border);cursor:pointer;transition:all 0.25s ease;position:relative;display:flex;align-items:flex-start;gap:8px;}
+.report-finding:hover{border-color:rgba(200,169,110,0.35);background:rgba(200,169,110,0.04);}
+.report-finding.active{border-color:var(--accent);background:rgba(200,169,110,0.07);}
+.finding-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:3px;background:var(--border);transition:background 0.3s;}
+.report-finding.active .finding-dot{background:var(--accent);}
+.finding-text{font-family:'DM Mono',monospace;font-size:9px;color:var(--text-dim);line-height:1.5;transition:color 0.3s;}
+.report-finding.active .finding-text{color:var(--text);}
+/* RIGHT: explanation panel */
+.explain-col{flex:1;display:flex;flex-direction:column;gap:10px;}
+.explain-panel{flex:1;border:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;overflow:hidden;}
+.explain-header{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.explain-label{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:0.18em;color:var(--accent);text-transform:uppercase;}
+.severity-bar{display:flex;gap:4px;align-items:center;}
+.sev-pip{width:20px;height:5px;background:var(--border);transition:background 0.4s ease;}
+.explain-body{flex:1;padding:14px 16px;display:flex;flex-direction:column;gap:10px;overflow:hidden;}
+.explain-term{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;font-style:italic;color:var(--text);line-height:1.2;}
+.explain-plain{font-family:'Outfit',sans-serif;font-size:11px;color:var(--text-dim);line-height:1.6;}
+.explain-divider{height:1px;background:var(--border);}
+.next-label{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:0.15em;color:var(--accent);text-transform:uppercase;margin-bottom:4px;}
+.next-action{font-family:'Outfit',sans-serif;font-size:11px;color:var(--text-dim);line-height:1.5;}
+.empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;}
+.empty-icon{font-family:'Cormorant Garamond',serif;font-size:36px;color:var(--border);}
+.empty-text{font-family:'DM Mono',monospace;font-size:9px;color:var(--text-muted);letter-spacing:0.12em;text-align:center;}
+.bottom-bar{height:30px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;}
+.disclaimer{font-family:'DM Mono',monospace;font-size:8px;color:var(--text-muted);}
+.branding{font-family:'DM Mono',monospace;font-size:8px;color:var(--accent);letter-spacing:0.15em;}
+</style>
+</head>
+<body>
+<div class="scaler" id="scaler">
+  <div class="canvas">
+    <div class="top-bar">
+      <span class="series-tag">PETAL Insights · Early Screening</span>
+      <span class="top-title">Ultrasound Report Decoder</span>
+      <span class="top-instruction">Select a finding to decode it</span>
+    </div>
+    <div class="main">
+      <div class="report-col">
+        <div class="report-card">
+          <div class="report-header">
+            <div class="report-title">Lower Limb Vascular Ultrasound</div>
+            <div class="report-meta">Shanghai Chest Hospital · Vascular Ultrasound Dept.</div>
+          </div>
+          <div class="report-body">
+            <div class="report-section-title">Examination Findings</div>
+            <div class="report-finding" id="f0" onclick="select(0)">
+              <span class="finding-dot"></span>
+              <span class="finding-text">Hypoechoic filling in femoral vein, non-compressible lumen</span>
+            </div>
+            <div class="report-finding" id="f1" onclick="select(1)">
+              <span class="finding-dot"></span>
+              <span class="finding-text">Defective blood flow signal in popliteal vein segment</span>
+            </div>
+            <div class="report-finding" id="f2" onclick="select(2)">
+              <span class="finding-dot"></span>
+              <span class="finding-text">Absent flow signal — posterior tibial vein</span>
+            </div>
+            <div class="report-finding" id="f3" onclick="select(3)">
+              <span class="finding-dot"></span>
+              <span class="finding-text">Organised thrombus, partially wall-adherent</span>
+            </div>
+            <div class="report-finding" id="f4" onclick="select(4)">
+              <span class="finding-dot"></span>
+              <span class="finding-text">No abnormality detected — contralateral limb</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="explain-col">
+        <div class="explain-panel" id="explain-panel">
+          <div class="explain-header">
+            <span class="explain-label" id="explain-label">Select a finding</span>
+            <div class="severity-bar" id="sev-bar">
+              <span style="font-family:'DM Mono',monospace;font-size:8px;color:var(--text-muted);letter-spacing:0.12em;margin-right:4px;">Urgency</span>
+              <div class="sev-pip" id="p0"></div>
+              <div class="sev-pip" id="p1"></div>
+              <div class="sev-pip" id="p2"></div>
+              <div class="sev-pip" id="p3"></div>
+            </div>
+          </div>
+          <div class="explain-body" id="explain-body">
+            <div class="empty-state">
+              <div class="empty-icon">⌕</div>
+              <div class="empty-text">Click any finding on the report<br>to decode what it means</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="bottom-bar">
+      <span class="disclaimer">For educational purposes only · Not a substitute for clinical evaluation</span>
+      <span class="branding">PETAL Insights · Shanghai Chest Hospital</span>
+    </div>
+  </div>
+</div>
+<script>
+function scaleToFit(){const s=document.getElementById('scaler');const sx=window.innerWidth/800;const sy=window.innerHeight/600;const sc=Math.min(sx,sy);s.style.transform=`scale(${sc})`;s.style.left=((window.innerWidth-800*sc)/2)+'px';s.style.top=((window.innerHeight-600*sc)/2)+'px';}
+scaleToFit();window.addEventListener('resize',scaleToFit);
+
+const findings=[
+  {
+    label:'Hypoechoic filling · Non-compressible',
+    severity:4,
+    severityColors:['#c8a96e','#e09050','#e05c5c','#e05c5c'],
+    term:'Acute Deep Vein Thrombosis',
+    plain:'A fresh, recently formed clot is present inside the femoral vein. "Hypoechoic" means the clot appears dark on the ultrasound image — characteristic of new clots, which have a soft, gel-like consistency. "Non-compressible" is the key diagnostic finding: the vein could not be flattened under probe pressure, because the clot holds the walls apart.',
+    nextLabel:'Likely clinical response',
+    next:'Immediate anticoagulation (blood-thinning medication) to prevent the clot from growing or breaking off and traveling to the lungs. Pulmonary embolism risk is highest in the first 48 hours.'
+  },
+  {
+    label:'Defective flow signal',
+    severity:3,
+    severityColors:['#c8a96e','#e09050','#e05c5c','var(--border)'],
+    term:'Partial Vessel Occlusion',
+    plain:'The color Doppler signal in this segment is reduced or interrupted. Blood is either trickling past a partial obstruction or being forced to divert around it. The vessel is not completely blocked, but normal flow has been significantly compromised.',
+    nextLabel:'Likely clinical response',
+    next:'Anticoagulation therapy to prevent extension. Repeat ultrasound in 5-7 days to monitor whether the clot is growing, stabilising, or resolving.'
+  },
+  {
+    label:'Absent flow signal',
+    severity:4,
+    severityColors:['#c8a96e','#e09050','#e05c5c','#e05c5c'],
+    term:'Complete Vessel Occlusion',
+    plain:'No blood flow is detectable in this vessel segment. The posterior tibial vein — one of the calf veins — is completely blocked. While calf DVT is generally considered lower risk than proximal (thigh) DVT, extension toward the popliteal and femoral veins is a documented risk.',
+    nextLabel:'Likely clinical response',
+    next:'Anticoagulation and close monitoring for proximal extension. If the clot extends above the knee, pulmonary embolism risk increases substantially.'
+  },
+  {
+    label:'Organised thrombus',
+    severity:2,
+    severityColors:['#c8a96e','#8fd4b0','var(--border)','var(--border)'],
+    term:'Chronic, Established Thrombus',
+    plain:'This clot has been present for weeks or longer. It has hardened ("organised"), changed its internal structure, and partially adhered to the vessel wall. On B-mode ultrasound it appears bright (hyperechoic) rather than dark, reflecting its denser, calcified composition. Wall-adherence reduces — but does not eliminate — the risk of it breaking off.',
+    nextLabel:'Likely clinical response',
+    next:'Management varies. Some organised thrombi are managed conservatively with anticoagulation; others may require additional imaging (CT venography) to assess extent and wall involvement before a treatment decision.'
+  },
+  {
+    label:'No abnormality detected',
+    severity:0,
+    severityColors:['var(--border)','var(--border)','var(--border)','var(--border)'],
+    term:'Normal Findings — Contralateral Limb',
+    plain:'The opposite leg shows no evidence of thrombus, flow abnormality, or vessel wall irregularity. This is the baseline against which abnormal findings in the affected limb are compared. A normal contralateral study also rules out bilateral DVT, which — though less common — does occur.',
+    nextLabel:'Clinical significance',
+    next:'Normal finding. No intervention indicated for this limb. The comparison helps confirm that the abnormal findings on the other side are localised, not systemic.'
+  }
+];
+
+let active=-1;
+
+function select(i){
+  active=i;
+  for(let k=0;k<5;k++){
+    document.getElementById('f'+k).classList.toggle('active',k===i);
+  }
+  const f=findings[i];
+  document.getElementById('explain-label').textContent=f.label;
+  // severity pips
+  const pipColors=['var(--border)','#c8a96e','#e09050','#e05c5c'];
+  for(let p=0;p<4;p++){
+    const pip=document.getElementById('p'+p);
+    pip.style.background=p<f.severity?f.severityColors[p]:'var(--border)';
+  }
+  const body=document.getElementById('explain-body');
+  body.innerHTML=`
+    <div class="explain-term">${f.term}</div>
+    <div class="explain-plain">${f.plain}</div>
+    <div class="explain-divider"></div>
+    <div>
+      <div class="next-label">${f.nextLabel}</div>
+      <div class="next-action">${f.next}</div>
+    </div>
+  `;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PETAL Insights — Clot Risk Timeline</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400&family=Outfit:wght@200;300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#070c11;--surface:#0d1419;--border:rgba(255,255,255,0.08);--text:#f2f4f7;--text-dim:rgba(242,244,247,0.72);--text-muted:rgba(242,244,247,0.42);--accent:#c8a96e;--f1:#7eb8d4;--f2:#8fd4b0;--alert:#e05c5c;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);}
+.scaler{width:800px;height:600px;transform-origin:top left;position:absolute;top:0;left:0;}
+.canvas{width:800px;height:600px;background:var(--bg);font-family:'Outfit',sans-serif;display:flex;flex-direction:column;position:relative;overflow:hidden;}
+.canvas::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 800px 400px at 50% 70%,rgba(224,92,92,0.03) 0%,transparent 65%);pointer-events:none;}
+.top-bar{height:44px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;}
+.series-tag{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.2em;color:var(--accent);text-transform:uppercase;}
+.top-title{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:300;color:var(--text);}
+.top-instruction{font-family:'DM Mono',monospace;font-size:9px;color:var(--text-muted);letter-spacing:0.1em;}
+.main{flex:1;display:flex;flex-direction:column;padding:14px 20px 8px;gap:12px;}
+/* Path selector */
+.path-selector{display:flex;gap:8px;flex-shrink:0;}
+.path-btn{flex:1;padding:10px 8px;border:1px solid var(--border);background:transparent;cursor:pointer;transition:all 0.3s ease;text-align:center;display:flex;flex-direction:column;gap:3px;user-select:none;}
+.path-btn:hover{border-color:rgba(200,169,110,0.3);}
+.path-btn.active-ignored{border-color:var(--alert);background:rgba(224,92,92,0.07);}
+.path-btn.active-delayed{border-color:#e09050;background:rgba(224,144,80,0.07);}
+.path-btn.active-acted{border-color:var(--f2);background:rgba(143,212,176,0.07);}
+.path-name{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-dim);transition:color 0.3s;}
+.path-btn.active-ignored .path-name{color:var(--alert);}
+.path-btn.active-delayed .path-name{color:#e09050;}
+.path-btn.active-acted .path-name{color:var(--f2);}
+.path-desc{font-family:'Outfit',sans-serif;font-size:9px;color:var(--text-muted);}
+/* Timeline */
+.timeline-area{flex:1;display:flex;flex-direction:column;gap:0;border:1px solid var(--border);background:var(--surface);overflow:hidden;}
+.tl-header{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;}
+.tl-col-label{flex:1;padding:7px 14px;font-family:'DM Mono',monospace;font-size:8px;letter-spacing:0.15em;color:var(--text-muted);text-transform:uppercase;border-right:1px solid var(--border);}
+.tl-col-label:last-child{border-right:none;}
+.tl-rows{flex:1;display:flex;overflow:hidden;}
+.tl-col{flex:1;border-right:1px solid var(--border);padding:10px 14px;display:flex;flex-direction:column;gap:8px;overflow:hidden;}
+.tl-col:last-child{border-right:none;}
+.tl-event{padding:8px 10px;border:1px solid var(--border);background:rgba(255,255,255,0.018);opacity:0;transform:translateY(6px);transition:all 0.4s ease;display:flex;flex-direction:column;gap:3px;}
+.tl-event.visible{opacity:1;transform:translateY(0);}
+.event-time{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:1px;}
+.event-title{font-family:'Cormorant Garamond',serif;font-size:13px;font-weight:600;line-height:1.2;}
+.event-detail{font-family:'Outfit',sans-serif;font-size:9px;color:var(--text-muted);line-height:1.4;}
+/* Color variants */
+.ev-ignored .event-time{color:rgba(224,92,92,0.7);}
+.ev-ignored .event-title{color:var(--alert);}
+.ev-ignored{border-color:rgba(224,92,92,0.2);background:rgba(224,92,92,0.04);}
+.ev-delayed .event-time{color:rgba(224,144,80,0.7);}
+.ev-delayed .event-title{color:#e09050;}
+.ev-delayed{border-color:rgba(224,144,80,0.2);background:rgba(224,144,80,0.04);}
+.ev-acted .event-time{color:rgba(143,212,176,0.7);}
+.ev-acted .event-title{color:var(--f2);}
+.ev-acted{border-color:rgba(143,212,176,0.2);background:rgba(143,212,176,0.04);}
+.ev-neutral .event-time{color:var(--text-muted);}
+.ev-neutral .event-title{color:var(--text-dim);}
+.empty-tl{flex:1;display:flex;align-items:center;justify-content:center;}
+.empty-tl-text{font-family:'DM Mono',monospace;font-size:9px;color:var(--text-muted);letter-spacing:0.12em;text-align:center;}
+.bottom-bar{height:30px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;}
+.disclaimer{font-family:'DM Mono',monospace;font-size:8px;color:var(--text-muted);}
+.branding{font-family:'DM Mono',monospace;font-size:8px;color:var(--accent);letter-spacing:0.15em;}
+</style>
+</head>
+<body>
+<div class="scaler" id="scaler">
+  <div class="canvas">
+    <div class="top-bar">
+      <span class="series-tag">PETAL Insights · Early Screening</span>
+      <span class="top-title">The Window That Closes</span>
+      <span class="top-instruction">Select a path to see how time shapes outcome</span>
+    </div>
+    <div class="main">
+      <div class="path-selector">
+        <button class="path-btn" id="pb-ignored" onclick="setPath('ignored')">
+          <span class="path-name">Ignored</span>
+          <span class="path-desc">Symptoms dismissed, no action taken</span>
+        </button>
+        <button class="path-btn" id="pb-delayed" onclick="setPath('delayed')">
+          <span class="path-name">Delayed</span>
+          <span class="path-desc">Waited 48–72 hours before seeking care</span>
+        </button>
+        <button class="path-btn" id="pb-acted" onclick="setPath('acted')">
+          <span class="path-name">Acted promptly</span>
+          <span class="path-desc">Sought assessment within 24 hours</span>
+        </button>
+      </div>
+      <div class="timeline-area">
+        <div class="tl-header">
+          <div class="tl-col-label">Symptom onset</div>
+          <div class="tl-col-label">24 hours</div>
+          <div class="tl-col-label">48 hours</div>
+          <div class="tl-col-label">72 hours +</div>
+        </div>
+        <div class="tl-rows" id="tl-rows">
+          <div class="empty-tl" id="empty-state">
+            <div class="empty-tl-text">Choose a path above<br>to see how the timeline unfolds</div>
+          </div>
+          <div id="col0" class="tl-col" style="display:none;"></div>
+          <div id="col1" class="tl-col" style="display:none;"></div>
+          <div id="col2" class="tl-col" style="display:none;"></div>
+          <div id="col3" class="tl-col" style="display:none;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="bottom-bar">
+      <span class="disclaimer">Illustrative timelines only · Individual cases vary · Seek professional evaluation</span>
+      <span class="branding">PETAL Insights · Shanghai Chest Hospital</span>
+    </div>
+  </div>
+</div>
+<script>
+function scaleToFit(){const s=document.getElementById('scaler');const sx=window.innerWidth/800;const sy=window.innerHeight/600;const sc=Math.min(sx,sy);s.style.transform=`scale(${sc})`;s.style.left=((window.innerWidth-800*sc)/2)+'px';s.style.top=((window.innerHeight-600*sc)/2)+'px';}
+scaleToFit();window.addEventListener('resize',scaleToFit);
+
+const paths={
+  ignored:[
+    [{type:'neutral',time:'Hour 0',title:'Swelling noticed',detail:'One leg becomes noticeably swollen and warm. Mild aching.'}],
+    [{type:'ignored',time:'24 hours',title:'Symptoms worsen',detail:'Swelling increases. Skin feels tight. Dismissed as a muscle strain.'}],
+    [{type:'ignored',time:'48 hours',title:'Clot extends',detail:'Thrombus propagates proximally toward the popliteal vein. Pulmonary embolism risk rising.'}],
+    [{type:'ignored',time:'72+ hours',title:'Acute PE risk',detail:'Clot reaches the femoral vein. Fragment may detach. Emergency presentation with chest pain or breathlessness.'}]
+  ],
+  delayed:[
+    [{type:'neutral',time:'Hour 0',title:'Swelling noticed',detail:'One leg becomes swollen and warm. Pain on walking.'}],
+    [{type:'delayed',time:'24 hours',title:'Monitored at home',detail:'"Wait and see." Symptoms not improving. Search engine consulted.'}],
+    [{type:'delayed',time:'48 hours',title:'Medical assessment',detail:'Vascular ultrasound ordered. DVT confirmed in popliteal vein. Anticoagulation started.'}],
+    [{type:'delayed',time:'72+ hours',title:'Managed — with caveats',detail:'Treatment underway, but clot has had 48 hours to mature and potentially extend. Longer anticoagulation course likely.'}]
+  ],
+  acted:[
+    [{type:'neutral',time:'Hour 0',title:'Swelling noticed',detail:'One leg becomes swollen and warm. Unexplained, not improving.'}],
+    [{type:'acted',time:'Within 24 hours',title:'Assessment sought',detail:'D-dimer test and vascular ultrasound ordered. DVT confirmed in femoral vein — acute, localised.'}],
+    [{type:'acted',time:'24–48 hours',title:'Treatment begins',detail:'Anticoagulation initiated. Clot stabilised. Pulmonary embolism risk contained.'}],
+    [{type:'acted',time:'Follow-up',title:'Monitored and managed',detail:'Repeat ultrasound in 1 week. Clot responding to treatment. Recovery trajectory established.'}]
+  ]
+};
+
+let activePath=null;
+
+function setPath(p){
+  activePath=p;
+  ['ignored','delayed','acted'].forEach(k=>{
+    const btn=document.getElementById('pb-'+k);
+    btn.className='path-btn'+(p===k?' active-'+k:'');
+  });
+  renderTimeline(p);
+}
+
+function renderTimeline(p){
+  document.getElementById('empty-state').style.display='none';
+  const data=paths[p];
+  for(let c=0;c<4;c++){
+    const col=document.getElementById('col'+c);
+    col.style.display='flex';
+    col.innerHTML='';
+    data[c].forEach((ev,i)=>{
+      const div=document.createElement('div');
+      div.className=`tl-event ev-${ev.type}`;
+      div.innerHTML=`<div class="event-time">${ev.time}</div><div class="event-title">${ev.title}</div><div class="event-detail">${ev.detail}</div>`;
+      col.appendChild(div);
+      setTimeout(()=>div.classList.add('visible'),(c*120)+(i*60));
+    });
+  }
+}
+</script>
+</body>
+</html>

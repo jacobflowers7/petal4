@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PETAL Insights — Compression Test</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400&family=Outfit:wght@200;300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#070c11;--surface:#0d1419;--border:rgba(255,255,255,0.08);--text:#f2f4f7;--text-dim:rgba(242,244,247,0.72);--text-muted:rgba(242,244,247,0.42);--accent:#c8a96e;--f1:#7eb8d4;--f2:#8fd4b0;--alert:#e05c5c;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);}
+.scaler{width:800px;height:600px;transform-origin:top left;position:absolute;top:0;left:0;}
+.canvas{width:800px;height:600px;background:var(--bg);font-family:'Outfit',sans-serif;display:flex;flex-direction:column;position:relative;overflow:hidden;}
+.canvas::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 600px 400px at 50% 50%,rgba(126,184,212,0.03) 0%,transparent 70%);pointer-events:none;}
+.top-bar{height:44px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;}
+.series-tag{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.2em;color:var(--accent);text-transform:uppercase;}
+.top-title{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:300;color:var(--text);}
+.top-instruction{font-family:'DM Mono',monospace;font-size:9px;color:var(--text-muted);letter-spacing:0.1em;}
+.main{flex:1;display:flex;padding:16px 20px 10px;gap:20px;}
+.left-col{display:flex;flex-direction:column;gap:10px;width:200px;flex-shrink:0;}
+.state-label{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:0.18em;color:var(--text-muted);text-transform:uppercase;margin-bottom:2px;}
+.state-btn{width:100%;padding:9px 12px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;text-align:left;transition:all 0.3s ease;display:flex;align-items:center;gap:8px;}
+.state-btn:hover{border-color:rgba(200,169,110,0.35);color:var(--text);}
+.state-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(200,169,110,0.07);}
+.state-dot{width:7px;height:7px;border-radius:50%;background:var(--border);flex-shrink:0;transition:background 0.3s;}
+.state-btn.active .state-dot{background:var(--accent);}
+.press-section{margin-top:8px;}
+.press-btn{width:100%;padding:12px;border:1px solid rgba(126,184,212,0.3);background:rgba(126,184,212,0.05);color:var(--f1);font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;transition:all 0.25s ease;user-select:none;text-align:center;}
+.press-btn:hover{border-color:rgba(126,184,212,0.6);background:rgba(126,184,212,0.1);}
+.press-btn:active,.press-btn.pressing{border-color:var(--f1);background:rgba(126,184,212,0.15);transform:scale(0.97);}
+.result-panel{margin-top:10px;padding:10px 12px;border:1px solid var(--border);background:rgba(255,255,255,0.02);min-height:70px;}
+.result-title{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:0.15em;color:var(--accent);text-transform:uppercase;margin-bottom:5px;}
+.result-text{font-family:'Outfit',sans-serif;font-size:10px;color:var(--text-dim);line-height:1.5;}
+.result-verdict{font-family:'Cormorant Garamond',serif;font-size:13px;font-weight:600;margin-top:5px;transition:color 0.4s;}
+.right-col{flex:1;display:flex;flex-direction:column;gap:10px;}
+.vessels-row{display:flex;gap:12px;flex:1;}
+.vessel-wrap{flex:1;border:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;overflow:hidden;}
+.vessel-header{padding:6px 10px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
+.vessel-name{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:0.18em;color:var(--accent);text-transform:uppercase;}
+.vessel-type{font-family:'DM Mono',monospace;font-size:8px;color:var(--text-muted);}
+.vessel-canvas{flex:1;position:relative;}
+.vessel-canvas canvas{position:absolute;top:0;left:0;width:100%;height:100%;}
+.bottom-bar{height:30px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;}
+.disclaimer{font-family:'DM Mono',monospace;font-size:8px;color:var(--text-muted);}
+.branding{font-family:'DM Mono',monospace;font-size:8px;color:var(--accent);letter-spacing:0.15em;}
+</style>
+</head>
+<body>
+<div class="scaler" id="scaler">
+  <div class="canvas">
+    <div class="top-bar">
+      <span class="series-tag">PETAL Insights · Early Screening</span>
+      <span class="top-title">The Compression Test</span>
+      <span class="top-instruction">Select state · Apply probe pressure</span>
+    </div>
+    <div class="main">
+      <div class="left-col">
+        <div class="state-label">Vessel state</div>
+        <button class="state-btn active" id="sb-clear" onclick="setState('clear')"><span class="state-dot"></span>Clear — no clot</button>
+        <button class="state-btn" id="sb-partial" onclick="setState('partial')"><span class="state-dot"></span>Partial clot</button>
+        <button class="state-btn" id="sb-full" onclick="setState('full')"><span class="state-dot"></span>Full occlusion</button>
+        <div class="press-section">
+          <button class="press-btn" id="pressBtn" onmousedown="startPress()" onmouseup="endPress()" onmouseleave="endPress()" ontouchstart="startPress()" ontouchend="endPress()">Hold to compress</button>
+        </div>
+        <div class="result-panel">
+          <div class="result-title">Compression result</div>
+          <div class="result-text" id="result-text">Apply probe pressure to the vein to test for compressibility.</div>
+          <div class="result-verdict" id="result-verdict" style="color:var(--text-muted)"></div>
+        </div>
+      </div>
+      <div class="right-col">
+        <div class="vessels-row">
+          <div class="vessel-wrap">
+            <div class="vessel-header">
+              <span class="vessel-name">Artery</span>
+              <span class="vessel-type">Muscular wall · Pulsatile</span>
+            </div>
+            <div class="vessel-canvas"><canvas id="artery"></canvas></div>
+          </div>
+          <div class="vessel-wrap">
+            <div class="vessel-header">
+              <span class="vessel-name">Vein</span>
+              <span class="vessel-type" id="vein-type-label">No thrombus present</span>
+            </div>
+            <div class="vessel-canvas"><canvas id="vein"></canvas></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="bottom-bar">
+      <span class="disclaimer">For educational purposes only · Not a substitute for clinical evaluation</span>
+      <span class="branding">PETAL Insights · Shanghai Chest Hospital</span>
+    </div>
+  </div>
+</div>
+<script>
+function scaleToFit(){const s=document.getElementById('scaler');const sx=window.innerWidth/800;const sy=window.innerHeight/600;const sc=Math.min(sx,sy);s.style.transform=`scale(${sc})`;s.style.left=((window.innerWidth-800*sc)/2)+'px';s.style.top=((window.innerHeight-600*sc)/2)+'px';}
+scaleToFit();window.addEventListener('resize',scaleToFit);
+
+let vesselState='clear';
+let pressing=false;
+let pressAnim=0;
+let animFrame=null;
+
+const stateMap={
+  'clear':{compress:true,label:'No thrombus present'},
+  'partial':{compress:false,label:'Partial thrombus — DVT suspected'},
+  'full':{compress:false,label:'Full occlusion — DVT confirmed'}
+};
+
+function setState(s){
+  vesselState=s;
+  ['clear','partial','full'].forEach(k=>{
+    document.getElementById('sb-'+k).classList.toggle('active',k===s);
+  });
+  document.getElementById('vein-type-label').textContent=stateMap[s].label;
+  document.getElementById('result-text').textContent='Apply probe pressure to the vein to test for compressibility.';
+  document.getElementById('result-verdict').textContent='';
+  pressAnim=0;
+  render();
+}
+
+function startPress(){
+  pressing=true;
+  document.getElementById('pressBtn').classList.add('pressing');
+  animatePressure();
+}
+function endPress(){
+  pressing=false;
+  document.getElementById('pressBtn').classList.remove('pressing');
+  if(pressAnim>=0.95) showResult();
+  animateRelease();
+}
+
+function animatePressure(){
+  if(!pressing){return;}
+  pressAnim=Math.min(pressAnim+0.04,1);
+  render();
+  if(pressAnim<1) animFrame=requestAnimationFrame(animatePressure);
+}
+function animateRelease(){
+  pressAnim=Math.max(pressAnim-0.06,0);
+  render();
+  if(pressAnim>0) requestAnimationFrame(animateRelease);
+}
+
+function showResult(){
+  const canCompress=stateMap[vesselState].compress;
+  const rt=document.getElementById('result-text');
+  const rv=document.getElementById('result-verdict');
+  if(canCompress){
+    rt.textContent='The vein collapsed completely under probe pressure. The lumen is clear.';
+    rv.textContent='No thrombus detected.';
+    rv.style.color='var(--f2)';
+  } else if(vesselState==='partial'){
+    rt.textContent='The vein did not fully collapse. A filling defect is present. The artery responded normally.';
+    rv.textContent='Thrombus suspected — further imaging required.';
+    rv.style.color='var(--accent)';
+  } else {
+    rt.textContent='The vein could not be compressed at all. The clot holds the walls apart. The artery collapsed normally.';
+    rv.textContent='Deep vein thrombosis confirmed.';
+    rv.style.color='var(--alert)';
+  }
+}
+
+function drawVessel(cvs,type,press,state){
+  const ctx=cvs.getContext('2d');const W=cvs.width,H=cvs.height;
+  ctx.clearRect(0,0,W,H);
+  const cx=W/2,cy=H/2;
+  const baseRx=W*0.32,baseRy=H*0.3;
+
+  ctx.fillStyle='#07111a';ctx.fillRect(0,0,W,H);
+  // tissue speckle
+  for(let i=0;i<300;i++){
+    const x=(Math.sin(i*97.1)*0.5+0.5)*W;const y=(Math.sin(i*211.7)*0.5+0.5)*H;
+    ctx.fillStyle=`rgba(140,175,200,${Math.random()*0.08+0.01})`;
+    ctx.beginPath();ctx.arc(x,y,0.6,0,Math.PI*2);ctx.fill();
+  }
+
+  let rx=baseRx,ry=baseRy;
+  if(type==='artery'){
+    // arteries: muscular, don't compress
+    const pulseMod=Math.sin(Date.now()*0.004)*0.03;
+    ry=baseRy*(1+pulseMod*0.5);
+  } else {
+    // veins: compress based on state and press
+    if(state==='clear'){
+      ry=baseRy*(1-press*0.88);
+      rx=baseRx*(1+press*0.05);
+    } else if(state==='partial'){
+      ry=baseRy*(1-press*0.18);
+    } else {
+      ry=baseRy*(1-press*0.04);
+    }
+  }
+
+  // probe indicator
+  if(press>0.05){
+    const probeY=cy-ry-12;
+    ctx.fillStyle=`rgba(126,184,212,${press*0.5})`;
+    ctx.fillRect(cx-30,0,60,probeY);
+    ctx.strokeStyle=`rgba(126,184,212,${press*0.8})`;
+    ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(cx-30,probeY);ctx.lineTo(cx+30,probeY);ctx.stroke();
+    // pressure arrow
+    ctx.strokeStyle=`rgba(126,184,212,${press*0.9})`;
+    ctx.lineWidth=1.5;
+    const aLen=Math.min(probeY-4,20)*press;
+    ctx.beginPath();ctx.moveTo(cx,probeY+2);ctx.lineTo(cx,probeY+aLen);
+    ctx.moveTo(cx,probeY+aLen);ctx.lineTo(cx-5,probeY+aLen-6);
+    ctx.moveTo(cx,probeY+aLen);ctx.lineTo(cx+5,probeY+aLen-6);
+    ctx.stroke();
+  }
+
+  // vessel wall
+  ctx.strokeStyle=type==='artery'?'rgba(212,168,176,0.7)':'rgba(170,205,225,0.7)';
+  ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.ellipse(cx,cy,rx+5,ry+5,0,0,Math.PI*2);ctx.stroke();
+  ctx.lineWidth=1.5;ctx.strokeStyle=type==='artery'?'rgba(180,140,148,0.4)':'rgba(130,175,205,0.4)';
+  ctx.beginPath();ctx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2);ctx.stroke();
+
+  // lumen
+  ctx.save();
+  ctx.beginPath();ctx.ellipse(cx,cy,Math.max(rx-1,1),Math.max(ry-1,1),0,0,Math.PI*2);ctx.clip();
+  ctx.fillStyle='#030608';ctx.fillRect(0,0,W,H);
+
+  // blood flow fill
+  if(type==='artery'||state==='clear'){
+    const g=ctx.createRadialGradient(cx,cy,0,cx,cy,Math.max(rx,ry));
+    g.addColorStop(0,type==='artery'?'rgba(180,60,70,0.35)':'rgba(60,110,180,0.3)');
+    g.addColorStop(1,'transparent');
+    ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  }
+
+  // thrombus in vein
+  if(type==='vein'&&state!=='clear'){
+    const tr=state==='full'?rx*0.88:rx*0.55;
+    const th=state==='full'?Math.max(ry-1,1)*0.88:Math.max(ry-1,1)*0.55;
+    const g=ctx.createRadialGradient(cx,cy,0,cx,cy,tr);
+    g.addColorStop(0,'rgba(15,28,45,0.97)');g.addColorStop(0.65,'rgba(10,20,35,0.9)');g.addColorStop(1,'rgba(6,14,24,0.65)');
+    ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(cx,cy,tr,th,0,0,Math.PI*2);ctx.fill();
+    for(let i=0;i<40;i++){
+      const tx=cx+(Math.random()-0.5)*tr*1.6,ty=cy+(Math.random()-0.5)*th*1.6;
+      ctx.fillStyle=`rgba(30,55,90,${Math.random()*0.4})`;
+      ctx.beginPath();ctx.arc(tx,ty,Math.random()*2.2,0,Math.PI*2);ctx.fill();
+    }
+  }
+  ctx.restore();
+
+  // collapsed label
+  if(type==='vein'&&state==='clear'&&press>0.7&&ry<baseRy*0.25){
+    ctx.font='bold 11px Outfit,sans-serif';
+    ctx.fillStyle='rgba(143,212,176,0.8)';
+    ctx.textAlign='center';
+    ctx.fillText('Collapsed ✓',cx,cy+ry+20);
+  }
+
+  // artery pulse ring
+  if(type==='artery'){
+    const pulsePhase=(Date.now()*0.004)%(Math.PI*2);
+    const pulseR=(rx+5)*(1+Math.sin(pulsePhase)*0.08);
+    ctx.strokeStyle=`rgba(212,168,176,${0.12+Math.sin(pulsePhase)*0.08})`;
+    ctx.lineWidth=1;
+    ctx.beginPath();ctx.ellipse(cx,cy,pulseR+8,ry+8+Math.sin(pulsePhase)*3,0,0,Math.PI*2);ctx.stroke();
+  }
+}
+
+let pulseTimer=null;
+function startPulse(){
+  if(pulseTimer)return;
+  pulseTimer=setInterval(()=>{
+    const ac=document.getElementById('artery');
+    if(ac.width>0)drawVessel(ac,'artery',pressAnim,vesselState);
+  },40);
+}
+
+function resizeCanvases(){
+  ['artery','vein'].forEach(id=>{const c=document.getElementById(id);const p=c.parentElement;c.width=p.offsetWidth;c.height=p.offsetHeight;});
+  render();
+}
+function render(){
+  const ac=document.getElementById('artery'),vc=document.getElementById('vein');
+  drawVessel(ac,'artery',pressAnim,vesselState);
+  drawVessel(vc,'vein',pressAnim,vesselState);
+}
+window.addEventListener('load',()=>{setTimeout(()=>{resizeCanvases();startPulse();},60);});
+window.addEventListener('resize',resizeCanvases);
+</script>
+</body>
+</html>

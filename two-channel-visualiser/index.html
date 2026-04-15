@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PETAL Insights — Two-Channel Visualiser</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400&family=Outfit:wght@200;300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#070c11;--surface:#0d1419;--border:rgba(255,255,255,0.08);--text:#f2f4f7;--text-dim:rgba(242,244,247,0.72);--text-muted:rgba(242,244,247,0.42);--accent:#c8a96e;--f1:#7eb8d4;--f2:#8fd4b0;--f3:#d4a8b0;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);}
+.scaler{width:800px;height:600px;transform-origin:top left;position:absolute;top:0;left:0;}
+.canvas{width:800px;height:600px;background:var(--bg);font-family:'Outfit',sans-serif;display:flex;flex-direction:column;position:relative;overflow:hidden;}
+.canvas::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 500px 300px at 20% 50%,rgba(126,184,212,0.04) 0%,transparent 70%),radial-gradient(ellipse 400px 300px at 80% 50%,rgba(208,168,176,0.04) 0%,transparent 70%);pointer-events:none;}
+.top-bar{height:44px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;}
+.series-tag{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.2em;color:var(--accent);text-transform:uppercase;}
+.top-title{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:300;color:var(--text);}
+.top-instruction{font-family:'DM Mono',monospace;font-size:9px;color:var(--text-muted);letter-spacing:0.1em;}
+.main{flex:1;display:flex;flex-direction:column;padding:14px 20px 8px;gap:10px;}
+.controls{display:flex;gap:10px;align-items:center;flex-shrink:0;}
+.control-label{font-family:'DM Mono',monospace;font-size:9px;color:var(--text-muted);letter-spacing:0.15em;text-transform:uppercase;margin-right:2px;}
+.btn-group{display:flex;gap:6px;}
+.btn{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.12em;padding:5px 12px;border:1px solid var(--border);background:transparent;color:var(--text-dim);cursor:pointer;transition:all 0.3s ease;text-transform:uppercase;user-select:none;}
+.btn:hover{border-color:rgba(200,169,110,0.4);color:var(--text);}
+.btn.active{border-color:var(--accent);color:var(--accent);background:rgba(200,169,110,0.08);}
+.divider{width:1px;height:20px;background:var(--border);margin:0 6px;}
+.panels{display:flex;gap:16px;flex:1;}
+.panel{flex:1;border:1px solid var(--border);background:var(--surface);position:relative;display:flex;flex-direction:column;overflow:hidden;}
+.panel-header{padding:7px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.panel-title{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:0.18em;color:var(--accent);text-transform:uppercase;}
+.panel-sub{font-family:'DM Mono',monospace;font-size:8px;color:var(--text-muted);}
+.panel-canvas{flex:1;position:relative;}
+.panel-canvas canvas{position:absolute;top:0;left:0;width:100%;height:100%;}
+.desc-bar{border-top:1px solid var(--border);padding:9px 20px;display:flex;gap:24px;flex-shrink:0;}
+.desc-item{flex:1;}
+.desc-label{font-family:'DM Mono',monospace;font-size:8px;letter-spacing:0.15em;color:var(--accent);text-transform:uppercase;margin-bottom:3px;}
+.desc-text{font-family:'Outfit',sans-serif;font-size:10px;color:var(--text-dim);line-height:1.5;}
+.bottom-bar{height:30px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;}
+.disclaimer{font-family:'DM Mono',monospace;font-size:8px;color:var(--text-muted);}
+.branding{font-family:'DM Mono',monospace;font-size:8px;color:var(--accent);letter-spacing:0.15em;}
+.slider-wrap{display:flex;align-items:center;gap:8px;flex:1;}
+input[type=range]{-webkit-appearance:none;appearance:none;height:2px;outline:none;flex:1;cursor:pointer;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--accent);cursor:pointer;}
+.slider-end{font-family:'DM Mono',monospace;font-size:8px;color:var(--text-muted);white-space:nowrap;}
+</style>
+</head>
+<body>
+<div class="scaler" id="scaler">
+  <div class="canvas">
+    <div class="top-bar">
+      <span class="series-tag">PETAL Insights · Early Screening</span>
+      <span class="top-title">Vascular Ultrasound: Two Channels</span>
+      <span class="top-instruction">Adjust occlusion · Toggle thrombus age</span>
+    </div>
+    <div class="main">
+      <div class="controls">
+        <span class="control-label">Occlusion</span>
+        <div class="slider-wrap">
+          <span class="slider-end">Clear</span>
+          <input type="range" id="occlusionSlider" min="0" max="100" value="0">
+          <span class="slider-end">Complete</span>
+        </div>
+        <div class="divider"></div>
+        <span class="control-label">Age</span>
+        <div class="btn-group">
+          <button class="btn active" id="btn-fresh" onclick="setAge('fresh')">Fresh</button>
+          <button class="btn" id="btn-old" onclick="setAge('old')">Organised</button>
+        </div>
+      </div>
+      <div class="panels">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">B-Mode</span>
+            <span class="panel-sub">Structure · Tissue echo</span>
+          </div>
+          <div class="panel-canvas"><canvas id="bmode"></canvas></div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Color Doppler</span>
+            <span class="panel-sub">Blood flow · Direction · Velocity</span>
+          </div>
+          <div class="panel-canvas"><canvas id="doppler"></canvas></div>
+        </div>
+      </div>
+      <div class="desc-bar">
+        <div class="desc-item">
+          <div class="desc-label">B-Mode Reading</div>
+          <div class="desc-text" id="bmode-desc">Smooth vessel walls, open lumen. No echo disruption detected.</div>
+        </div>
+        <div class="desc-item">
+          <div class="desc-label">Doppler Reading</div>
+          <div class="desc-text" id="doppler-desc">Color fills the vessel evenly. Blood moves freely in both directions.</div>
+        </div>
+      </div>
+    </div>
+    <div class="bottom-bar">
+      <span class="disclaimer">For educational purposes only · Not a substitute for clinical evaluation</span>
+      <span class="branding">PETAL Insights · Shanghai Chest Hospital</span>
+    </div>
+  </div>
+</div>
+<script>
+function scaleToFit(){const s=document.getElementById('scaler');const sx=window.innerWidth/800;const sy=window.innerHeight/600;const sc=Math.min(sx,sy);s.style.transform=`scale(${sc})`;s.style.left=((window.innerWidth-800*sc)/2)+'px';s.style.top=((window.innerHeight-600*sc)/2)+'px';}
+scaleToFit();window.addEventListener('resize',scaleToFit);
+
+let occ=0,age='fresh';
+const slider=document.getElementById('occlusionSlider');
+slider.addEventListener('input',function(){occ=parseInt(this.value);this.style.background=`linear-gradient(to right,#c8a96e 0%,#c8a96e ${occ}%,rgba(255,255,255,0.08) ${occ}%)`;render();});
+
+function setAge(a){age=a;document.getElementById('btn-fresh').classList.toggle('active',a==='fresh');document.getElementById('btn-old').classList.toggle('active',a==='old');render();}
+
+function drawBMode(cvs,o,ag){
+  const ctx=cvs.getContext('2d');const W=cvs.width,H=cvs.height;
+  ctx.clearRect(0,0,W,H);
+  const cx=W/2,cy=H/2,vW=W*0.6,vH=H*0.42;
+  ctx.fillStyle='#07111a';ctx.fillRect(0,0,W,H);
+  // tissue speckle
+  for(let i=0;i<600;i++){
+    const x=(Math.sin(i*127.1)*0.5+0.5)*W;const y=(Math.sin(i*311.7)*0.5+0.5)*H;
+    ctx.fillStyle=`rgba(160,190,210,${Math.random()*0.1+0.01})`;
+    ctx.beginPath();ctx.arc(x,y,0.7,0,Math.PI*2);ctx.fill();
+  }
+  // vessel walls
+  ctx.strokeStyle='rgba(170,205,225,0.65)';ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.ellipse(cx,cy,vW/2+5,vH/2+5,0,0,Math.PI*2);ctx.stroke();
+  ctx.strokeStyle='rgba(130,175,205,0.4)';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.ellipse(cx,cy,vW/2,vH/2,0,0,Math.PI*2);ctx.stroke();
+  // lumen clip
+  ctx.save();
+  ctx.beginPath();ctx.ellipse(cx,cy,vW/2-1,vH/2-1,0,0,Math.PI*2);ctx.clip();
+  ctx.fillStyle='#030608';ctx.fillRect(0,0,W,H);
+  if(o>0){
+    const cr=(o/100)*(vW/2-5),ch=(o/100)*(vH/2-5),clx=cx-vW*0.08;
+    if(ag==='fresh'){
+      const g=ctx.createRadialGradient(clx,cy,0,clx,cy,cr);
+      g.addColorStop(0,'rgba(18,32,52,0.97)');g.addColorStop(0.6,'rgba(12,24,40,0.92)');g.addColorStop(1,'rgba(8,16,28,0.7)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(clx,cy,cr,ch,0,0,Math.PI*2);ctx.fill();
+      for(let i=0;i<50*(o/100);i++){
+        const tx=clx+(Math.random()-0.5)*cr*1.7,ty=cy+(Math.random()-0.5)*ch*1.7;
+        ctx.fillStyle=`rgba(35,65,100,${Math.random()*0.35})`;
+        ctx.beginPath();ctx.arc(tx,ty,Math.random()*2.5,0,Math.PI*2);ctx.fill();
+      }
+      ctx.strokeStyle='rgba(50,90,130,0.35)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.ellipse(clx,cy,cr,ch,0,0,Math.PI*2);ctx.stroke();
+    } else {
+      const g=ctx.createRadialGradient(clx,cy,0,clx,cy,cr);
+      g.addColorStop(0,'rgba(200,212,222,0.92)');g.addColorStop(0.4,'rgba(155,172,185,0.85)');g.addColorStop(0.85,'rgba(90,120,140,0.65)');g.addColorStop(1,'rgba(50,80,100,0.45)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(clx,cy,cr,ch,0,0,Math.PI*2);ctx.fill();
+      for(let i=0;i<70*(o/100);i++){
+        const tx=clx+(Math.random()-0.5)*cr*1.5,ty=cy+(Math.random()-0.5)*ch*1.5;
+        ctx.fillStyle=`rgba(238,243,248,${Math.random()*0.65+0.15})`;
+        ctx.beginPath();ctx.arc(tx,ty,Math.random()*1.6,0,Math.PI*2);ctx.fill();
+      }
+    }
+  }
+  ctx.restore();
+  // scale bar
+  ctx.fillStyle='rgba(242,244,247,0.35)';ctx.fillRect(W-48,H-14,28,1.5);
+  ctx.font='8px monospace';ctx.fillStyle='rgba(242,244,247,0.28)';ctx.fillText('1cm',W-48,H-18);
+}
+
+function drawDoppler(cvs,o,ag){
+  const ctx=cvs.getContext('2d');const W=cvs.width,H=cvs.height;
+  ctx.clearRect(0,0,W,H);
+  const cx=W/2,cy=H/2,vW=W*0.6,vH=H*0.42;
+  ctx.fillStyle='#030608';ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='rgba(170,205,225,0.55)';ctx.lineWidth=2;
+  ctx.beginPath();ctx.ellipse(cx,cy,vW/2+4,vH/2+4,0,0,Math.PI*2);ctx.stroke();
+  ctx.save();
+  ctx.beginPath();ctx.ellipse(cx,cy,vW/2-1,vH/2-1,0,0,Math.PI*2);ctx.clip();
+  ctx.fillStyle='#020508';ctx.fillRect(0,0,W,H);
+  const fs=1-(o/100);const ns=18;
+  const clx=cx-vW*0.08;const cr=(o/100)*(vW/2-5);
+  for(let i=0;i<ns;i++){
+    const t=i/ns;
+    const yp=cy-(vH/2-5)+t*(vH-10);
+    const dfc=Math.abs(yp-cy)/(vH/2);
+    const lf=fs*(1-dfc*dfc);
+    if(lf<0.03)continue;
+    const toward=i<ns/2;
+    const col=toward?[220,75,75]:[70,100,220];
+    ctx.strokeStyle=`rgba(${col[0]},${col[1]},${col[2]},${lf*0.88})`;
+    ctx.lineWidth=(vH/ns)*0.72;
+    const x0=cx-vW/2+5,x1=cx+vW/2-5;
+    ctx.beginPath();
+    if(o>8){
+      const cl=clx-cr*0.88;
+      if(x0<cl){ctx.moveTo(x0,yp);ctx.lineTo(Math.min(cl,x1),yp);ctx.stroke();}
+      if(o<92){const cr2=clx+cr*0.88;if(cr2<x1){ctx.beginPath();ctx.moveTo(cr2,yp);ctx.lineTo(x1,yp);ctx.stroke();}}
+    } else {ctx.moveTo(x0,yp);ctx.lineTo(x1,yp);ctx.stroke();}
+  }
+  ctx.restore();
+  // legend
+  const lx=12,ly=H-40;
+  ctx.fillStyle='rgba(220,75,75,0.75)';ctx.fillRect(lx,ly,13,5);
+  ctx.font='8px monospace';ctx.fillStyle='rgba(242,244,247,0.38)';ctx.fillText('Toward probe',lx+17,ly+5);
+  ctx.fillStyle='rgba(70,100,220,0.75)';ctx.fillRect(lx,ly+12,13,5);
+  ctx.fillText('Away from probe',lx+17,ly+17);
+  ctx.fillStyle='rgba(242,244,247,0.35)';ctx.fillRect(W-48,H-14,28,1.5);
+  ctx.font='8px monospace';ctx.fillStyle='rgba(242,244,247,0.28)';ctx.fillText('1cm',W-48,H-18);
+}
+
+function updateDesc(o,ag){
+  const bd=document.getElementById('bmode-desc'),dd=document.getElementById('doppler-desc');
+  if(o===0){bd.textContent='Smooth vessel walls, open lumen. No echo disruption detected.';dd.textContent='Color fills the vessel evenly. Blood moves freely in both directions.';}
+  else if(o<40){
+    bd.textContent=ag==='fresh'?'Partial low-echo (dark) filling defect — consistent with acute, fresh thrombus.':'Partial hyperechoic (bright) mass with dense speckle — consistent with organised thrombus.';
+    dd.textContent='Flow signal reduced. Blood diverting around the partial obstruction.';
+  } else if(o<88){
+    bd.textContent=ag==='fresh'?'Substantial low-echo mass occupying most of the lumen — acute thrombus.':'Dense hyperechoic mass with calcification — organised thrombus, likely weeks old.';
+    dd.textContent='Markedly reduced flow. Thin residual signal at vessel margins only.';
+  } else {
+    bd.textContent=ag==='fresh'?'Near-complete occlusion by acute low-echo thrombus.':'Complete occlusion by organised, calcified thrombus.';
+    dd.textContent='Absent flow signal. Vessel is occluded — blood cannot pass.';
+  }
+}
+
+function resizeCanvases(){
+  ['bmode','doppler'].forEach(id=>{const c=document.getElementById(id);const p=c.parentElement;c.width=p.offsetWidth;c.height=p.offsetHeight;});
+  render();
+}
+function render(){
+  drawBMode(document.getElementById('bmode'),occ,age);
+  drawDoppler(document.getElementById('doppler'),occ,age);
+  updateDesc(occ,age);
+}
+window.addEventListener('load',()=>{setTimeout(resizeCanvases,60);});
+window.addEventListener('resize',resizeCanvases);
+</script>
+</body>
+</html>
