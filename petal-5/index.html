@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CTPA: How a Pulmonary Embolism is Seen</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400&family=Outfit:wght@200;300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #070c11;
+    --surface: #0d1419;
+    --border: rgba(255,255,255,0.08);
+    --text: #f2f4f7;
+    --text-dim: rgba(242,244,247,0.72);
+    --text-muted: rgba(242,244,247,0.42);
+    --accent: #c8a96e;
+    --contrast: #f4e8c8;
+    --vessel: rgba(242,244,247,0.18);
+    --clot: #e05c5c;
+    --alert: #e05c5c;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    font-family: 'Outfit', sans-serif;
+    color: var(--text);
+  }
+
+  .scaler {
+    width: 800px;
+    height: 600px;
+    transform-origin: top left;
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+
+  .canvas {
+    width: 800px;
+    height: 600px;
+    position: relative;
+    background:
+      radial-gradient(ellipse at 20% 30%, rgba(200,169,110,0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 70%, rgba(224,92,92,0.04) 0%, transparent 50%),
+      var(--bg);
+    overflow: hidden;
+  }
+
+  /* Top bar */
+  .top-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    border-bottom: 1px solid var(--border);
+    z-index: 10;
+  }
+
+  .series-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+
+  .center-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 16px;
+    font-style: italic;
+    font-weight: 400;
+    color: var(--text-dim);
+  }
+
+  .instruction {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+
+  /* Main layout */
+  .main-content {
+    position: absolute;
+    top: 44px;
+    left: 0;
+    right: 0;
+    bottom: 36px;
+    display: flex;
+  }
+
+  /* Left: scan viewer */
+  .scan-viewer {
+    flex: 1.15;
+    position: relative;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .scan-frame {
+    width: 380px;
+    height: 380px;
+    border: 1px solid var(--border);
+    background: #05080b;
+    position: relative;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .scan-label {
+    position: absolute;
+    top: 8px;
+    left: 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 8px;
+    color: var(--text-muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    z-index: 5;
+  }
+
+  .scan-label-right {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 8px;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    z-index: 5;
+  }
+
+  .scan-timer {
+    position: absolute;
+    bottom: 8px;
+    left: 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    z-index: 5;
+  }
+
+  .scan-scale {
+    position: absolute;
+    bottom: 8px;
+    right: 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 8px;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    z-index: 5;
+  }
+
+  .stage-label {
+    margin-top: 16px;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text);
+    text-align: center;
+  }
+
+  .stage-number {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--accent);
+    letter-spacing: 0.2em;
+    margin-bottom: 4px;
+    text-align: center;
+  }
+
+  /* Right: info panel */
+  .info-panel {
+    flex: 1;
+    padding: 24px 28px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .panel-header {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--accent);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .stage-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 12px;
+    line-height: 1.2;
+  }
+
+  .stage-description {
+    font-size: 12px;
+    font-weight: 300;
+    color: var(--text-dim);
+    line-height: 1.65;
+    margin-bottom: 16px;
+  }
+
+  .key-fact {
+    background: rgba(200,169,110,0.06);
+    border-left: 2px solid var(--accent);
+    padding: 10px 14px;
+    margin-bottom: 16px;
+  }
+
+  .key-fact-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 8px;
+    color: var(--accent);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .key-fact-text {
+    font-size: 11px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  /* Stage controls */
+  .stage-controls {
+    display: flex;
+    gap: 6px;
+    margin-top: auto;
+  }
+
+  .stage-button {
+    flex: 1;
+    padding: 10px 6px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+    user-select: none;
+    text-align: center;
+  }
+
+  .stage-button:hover {
+    background: rgba(255,255,255,0.02);
+    color: var(--text-dim);
+  }
+
+  .stage-button.active {
+    background: rgba(200,169,110,0.12);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .stage-button.alert-active {
+    background: rgba(224,92,92,0.15);
+    border-color: var(--alert);
+    color: var(--alert);
+  }
+
+  /* Bottom bar */
+  .bottom-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    border-top: 1px solid var(--border);
+  }
+
+  .disclaimer {
+    font-size: 9px;
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  .branding {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--accent);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  /* SVG elements */
+  .vessel-path {
+    transition: opacity 0.6s ease, stroke 0.6s ease, fill 0.6s ease;
+  }
+
+  .contrast-flow {
+    transition: opacity 0.5s ease;
+  }
+
+  /* Pulse ring for the clot */
+  @keyframes pulse-clot {
+    0% { r: 6; opacity: 0.6; }
+    100% { r: 22; opacity: 0; }
+  }
+
+  .clot-pulse {
+    animation: pulse-clot 1.8s ease-out infinite;
+    transform-origin: center;
+  }
+
+  /* Scan sweep animation */
+  @keyframes scan-sweep {
+    0% { transform: translateY(-380px); }
+    100% { transform: translateY(380px); }
+  }
+
+  .scan-sweep-line {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0;
+    animation: scan-sweep 1.2s ease-out;
+    z-index: 3;
+  }
+
+  /* Contrast injection visual */
+  @keyframes inject-flow {
+    0% { opacity: 0; }
+    30% { opacity: 1; }
+    100% { opacity: 1; }
+  }
+
+  .injecting {
+    animation: inject-flow 0.8s ease forwards;
+  }
+
+  /* Fade-in on load */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .fade-in {
+    animation: fadeIn 0.5s ease;
+  }
+</style>
+</head>
+<body>
+<div class="scaler" id="scaler">
+<div class="canvas">
+
+  <!-- Top bar -->
+  <div class="top-bar">
+    <div class="series-tag">PETAL · Insights · Early Screening</div>
+    <div class="center-title">CT Pulmonary Angiography</div>
+    <div class="instruction">Tap stages below</div>
+  </div>
+
+  <!-- Main content -->
+  <div class="main-content">
+
+    <!-- Left: scan viewer -->
+    <div class="scan-viewer">
+      <div class="scan-frame" id="scan-frame">
+        <div class="scan-label" id="scan-label-left">CTPA · AXIAL</div>
+        <div class="scan-label-right" id="scan-label-right">STAGE 01 / 04</div>
+
+        <svg id="scan-svg" viewBox="0 0 380 380" width="380" height="380" xmlns="http://www.w3.org/2000/svg">
+
+          <!-- Chest cavity outline -->
+          <ellipse cx="190" cy="200" rx="145" ry="135" fill="none" stroke="rgba(242,244,247,0.06)" stroke-width="1"/>
+
+          <!-- Spine (back) -->
+          <circle cx="190" cy="305" r="14" fill="rgba(242,244,247,0.08)"/>
+
+          <!-- Heart outline (simplified) -->
+          <path d="M 150 205 Q 140 175 165 160 Q 190 150 215 160 Q 240 175 235 205 Q 230 240 190 255 Q 155 240 150 205 Z"
+                fill="rgba(242,244,247,0.04)" stroke="rgba(242,244,247,0.12)" stroke-width="1"/>
+
+          <!-- Pulmonary artery tree (left and right) -->
+          <!-- Main pulmonary trunk (coming out of heart) -->
+          <g id="vessel-tree">
+
+            <!-- Main trunk -->
+            <path id="v-main" class="vessel-path"
+              d="M 190 195 L 190 170"
+              stroke="var(--vessel)" stroke-width="8" fill="none" stroke-linecap="round"/>
+
+            <!-- Right pulmonary artery -->
+            <path id="v-right-main" class="vessel-path"
+              d="M 190 170 Q 210 160 240 165 L 275 170"
+              stroke="var(--vessel)" stroke-width="7" fill="none" stroke-linecap="round"/>
+
+            <!-- Right lobar branches -->
+            <path id="v-right-upper" class="vessel-path"
+              d="M 260 165 Q 285 155 295 140 L 305 118"
+              stroke="var(--vessel)" stroke-width="5" fill="none" stroke-linecap="round"/>
+
+            <path id="v-right-middle" class="vessel-path"
+              d="M 275 170 Q 295 175 310 185 L 325 200"
+              stroke="var(--vessel)" stroke-width="5" fill="none" stroke-linecap="round"/>
+
+            <path id="v-right-lower" class="vessel-path"
+              d="M 275 170 Q 295 195 305 220 L 315 260"
+              stroke="var(--vessel)" stroke-width="5" fill="none" stroke-linecap="round"/>
+
+            <!-- Right segmental branches -->
+            <path id="v-right-seg1" class="vessel-path"
+              d="M 305 118 L 315 100 M 305 118 L 325 115"
+              stroke="var(--vessel)" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+            <path id="v-right-seg2" class="vessel-path"
+              d="M 325 200 L 345 205 M 325 200 L 335 218"
+              stroke="var(--vessel)" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+            <path id="v-right-seg3" class="vessel-path"
+              d="M 315 260 L 325 275 M 315 260 L 300 285"
+              stroke="var(--vessel)" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+            <!-- Left pulmonary artery -->
+            <path id="v-left-main" class="vessel-path"
+              d="M 190 170 Q 170 160 140 165 L 105 170"
+              stroke="var(--vessel)" stroke-width="7" fill="none" stroke-linecap="round"/>
+
+            <!-- Left lobar branches -->
+            <path id="v-left-upper" class="vessel-path"
+              d="M 120 165 Q 95 155 85 140 L 75 118"
+              stroke="var(--vessel)" stroke-width="5" fill="none" stroke-linecap="round"/>
+
+            <path id="v-left-middle" class="vessel-path"
+              d="M 105 170 Q 85 175 70 185 L 55 200"
+              stroke="var(--vessel)" stroke-width="5" fill="none" stroke-linecap="round"/>
+
+            <path id="v-left-lower" class="vessel-path"
+              d="M 105 170 Q 85 195 75 220 L 65 260"
+              stroke="var(--vessel)" stroke-width="5" fill="none" stroke-linecap="round"/>
+
+            <!-- Left segmental branches -->
+            <path id="v-left-seg1" class="vessel-path"
+              d="M 75 118 L 65 100 M 75 118 L 55 115"
+              stroke="var(--vessel)" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+            <path id="v-left-seg2" class="vessel-path"
+              d="M 55 200 L 35 205 M 55 200 L 45 218"
+              stroke="var(--vessel)" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+            <path id="v-left-seg3" class="vessel-path"
+              d="M 65 260 L 55 275 M 65 260 L 80 285"
+              stroke="var(--vessel)" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+          </g>
+
+          <!-- Clot (filling defect) - appears at stage 4 -->
+          <g id="clot-group" opacity="0">
+            <!-- Dark filling defect on right lobar branch -->
+            <ellipse cx="290" cy="170" rx="14" ry="5" fill="#05080b" stroke="#05080b" stroke-width="1"/>
+            <!-- Subtle red highlight to indicate clot location -->
+            <circle id="clot-pulse-outer" class="clot-pulse" cx="290" cy="170" r="6" fill="none" stroke="var(--clot)" stroke-width="1.5" opacity="0.6"/>
+            <circle cx="290" cy="170" r="3" fill="var(--clot)" opacity="0.9"/>
+          </g>
+
+          <!-- Scan reticle/crosshair (stage 3) -->
+          <g id="reticle" opacity="0">
+            <line x1="190" y1="60" x2="190" y2="340" stroke="var(--accent)" stroke-width="0.5" stroke-dasharray="2,3" opacity="0.5"/>
+            <line x1="40" y1="200" x2="340" y2="200" stroke="var(--accent)" stroke-width="0.5" stroke-dasharray="2,3" opacity="0.5"/>
+          </g>
+
+        </svg>
+
+        <!-- Scan sweep line overlay (triggered on stage change) -->
+        <div id="sweep-overlay"></div>
+
+        <div class="scan-timer" id="scan-timer">T + 00.0s</div>
+        <div class="scan-scale">5mm / slice</div>
+      </div>
+
+      <div class="stage-number" id="stage-number" style="margin-top: 14px;">STAGE 01 · PRE-CONTRAST</div>
+      <div class="stage-label" id="stage-label">The baseline scan</div>
+    </div>
+
+    <!-- Right: info panel -->
+    <div class="info-panel">
+      <div>
+        <div class="panel-header">What you are seeing</div>
+        <h2 class="stage-title" id="panel-title">Vessels, empty</h2>
+        <p class="stage-description" id="panel-description">
+          Before contrast, the pulmonary arteries and the surrounding tissue appear at similar shades of grey. The vessels are there, but they blend into the background. A clot, if one exists, is invisible at this stage. A chest X-ray would look the same.
+        </p>
+        <div class="key-fact">
+          <div class="key-fact-label">Key fact</div>
+          <div class="key-fact-text" id="panel-fact">
+            Without contrast, blood and clot look identical on CT imaging.
+          </div>
+        </div>
+      </div>
+
+      <div class="stage-controls">
+        <button class="stage-button active" data-stage="1">01<br/>Baseline</button>
+        <button class="stage-button" data-stage="2">02<br/>Inject</button>
+        <button class="stage-button" data-stage="3">03<br/>Peak</button>
+        <button class="stage-button" data-stage="4">04<br/>Defect</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom bar -->
+  <div class="bottom-bar">
+    <div class="disclaimer">For educational purposes only. Not a substitute for professional medical evaluation.</div>
+    <div class="branding">PETAL · Shanghai Chest Hospital</div>
+  </div>
+
+</div>
+</div>
+
+<script>
+  // Stage data
+  const stages = {
+    1: {
+      label: 'The baseline scan',
+      number: 'STAGE 01 · PRE-CONTRAST',
+      title: 'Vessels, empty',
+      description: 'Before contrast, the pulmonary arteries and the surrounding tissue appear at similar shades of grey. The vessels are there, but they blend into the background. A clot, if one exists, is invisible at this stage. A chest X-ray would look the same.',
+      fact: 'Without contrast, blood and clot look identical on CT imaging.',
+      timer: 'T + 00.0s',
+      scanLabel: 'STAGE 01 / 04',
+      vesselColor: 'rgba(242,244,247,0.18)',
+      contrastOpacity: 0,
+      showClot: false,
+      showReticle: false,
+      alertMode: false
+    },
+    2: {
+      label: 'Contrast injected',
+      number: 'STAGE 02 · INJECTION',
+      title: 'The dye enters the bloodstream',
+      description: 'A nurse injects 80 to 100 millilitres of iodine-based contrast into a vein in the arm. A power injector pushes it at speed. The contrast travels up through the superior vena cava, reaches the right side of the heart, and is pumped directly into the pulmonary arteries. Total travel time: about ten seconds.',
+      fact: 'Iodine absorbs X-rays strongly, making any vessel it fills appear bright on the scan.',
+      timer: 'T + 05.2s',
+      scanLabel: 'STAGE 02 / 04',
+      vesselColor: 'rgba(200,169,110,0.5)',
+      contrastOpacity: 0.4,
+      showClot: false,
+      showReticle: false,
+      alertMode: false
+    },
+    3: {
+      label: 'Peak arterial enhancement',
+      number: 'STAGE 03 · PEAK',
+      title: 'The scan fires',
+      description: 'When the contrast fills the pulmonary arteries, the scanner begins its scan. The patient holds their breath for five to ten seconds. The scanner slices through the chest from top to bottom, producing hundreds of thin images. Every contrast-filled vessel appears bright white against darker tissue.',
+      fact: 'A modern CT scanner acquires the full chest volume in under ten seconds.',
+      timer: 'T + 12.8s',
+      scanLabel: 'STAGE 03 / 04',
+      vesselColor: 'var(--contrast)',
+      contrastOpacity: 1,
+      showClot: false,
+      showReticle: true,
+      alertMode: false
+    },
+    4: {
+      label: 'Filling defect identified',
+      number: 'STAGE 04 · DIAGNOSIS',
+      title: 'The clot, caught',
+      description: 'A dark patch in the bright vessel: the filling defect. Contrast fills the pulmonary artery up to a point, and then stops. Something is blocking it. This is the direct, visual proof of a pulmonary embolism. The radiologist notes the location (main trunk, lobar, segmental, or subsegmental), the size, and whether both lungs are affected.',
+      fact: 'This is the gold-standard diagnosis. The defect is the clot itself, photographed in place.',
+      timer: 'T + 14.5s',
+      scanLabel: 'STAGE 04 / 04',
+      vesselColor: 'var(--contrast)',
+      contrastOpacity: 1,
+      showClot: true,
+      showReticle: false,
+      alertMode: true
+    }
+  };
+
+  const vesselIds = [
+    'v-main', 'v-right-main', 'v-right-upper', 'v-right-middle', 'v-right-lower',
+    'v-right-seg1', 'v-right-seg2', 'v-right-seg3',
+    'v-left-main', 'v-left-upper', 'v-left-middle', 'v-left-lower',
+    'v-left-seg1', 'v-left-seg2', 'v-left-seg3'
+  ];
+
+  function triggerScanSweep() {
+    const frame = document.getElementById('scan-frame');
+    const existing = document.getElementById('sweep-line');
+    if (existing) existing.remove();
+
+    const sweep = document.createElement('div');
+    sweep.id = 'sweep-line';
+    sweep.className = 'scan-sweep-line';
+    frame.appendChild(sweep);
+
+    // Trigger animation
+    requestAnimationFrame(() => {
+      sweep.style.opacity = '1';
+    });
+
+    setTimeout(() => sweep.remove(), 1300);
+  }
+
+  function setStage(n) {
+    const s = stages[n];
+    if (!s) return;
+
+    // Update buttons
+    document.querySelectorAll('.stage-button').forEach(b => {
+      b.classList.remove('active', 'alert-active');
+      if (parseInt(b.dataset.stage) === n) {
+        b.classList.add(s.alertMode ? 'alert-active' : 'active');
+      }
+    });
+
+    // Update panel content
+    document.getElementById('panel-title').textContent = s.title;
+    document.getElementById('panel-description').textContent = s.description;
+    document.getElementById('panel-fact').textContent = s.fact;
+    document.getElementById('stage-number').textContent = s.number;
+    document.getElementById('stage-label').textContent = s.label;
+    document.getElementById('scan-timer').textContent = s.timer;
+    document.getElementById('scan-label-right').textContent = s.scanLabel;
+
+    // Update vessel colors
+    vesselIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.setAttribute('stroke', s.vesselColor);
+      }
+    });
+
+    // Update clot visibility
+    const clot = document.getElementById('clot-group');
+    clot.setAttribute('opacity', s.showClot ? '1' : '0');
+
+    // Update reticle
+    const reticle = document.getElementById('reticle');
+    reticle.setAttribute('opacity', s.showReticle ? '1' : '0');
+
+    // Trigger scan sweep on stage 3
+    if (n === 3) {
+      triggerScanSweep();
+    }
+
+    // Update scan label left color
+    const leftLabel = document.getElementById('scan-label-left');
+    leftLabel.style.color = s.alertMode ? 'var(--clot)' : 'var(--text-muted)';
+    document.getElementById('scan-label-left').textContent = s.alertMode ? 'CTPA · POSITIVE' : 'CTPA · AXIAL';
+  }
+
+  // Wire up buttons
+  document.querySelectorAll('.stage-button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const stage = parseInt(btn.dataset.stage);
+      setStage(stage);
+    });
+  });
+
+  // Initial state
+  setStage(1);
+
+  // ScaleToFit
+  function scaleToFit() {
+    const scaler = document.getElementById('scaler');
+    const scaleX = window.innerWidth / 800;
+    const scaleY = window.innerHeight / 600;
+    const scale = Math.min(scaleX, scaleY);
+    scaler.style.transform = `scale(${scale})`;
+    scaler.style.left = ((window.innerWidth - 800 * scale) / 2) + 'px';
+    scaler.style.top = ((window.innerHeight - 600 * scale) / 2) + 'px';
+  }
+  scaleToFit();
+  window.addEventListener('resize', scaleToFit);
+</script>
+</body>
+</html>
