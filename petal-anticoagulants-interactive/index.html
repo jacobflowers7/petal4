@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PETAL Insights · Anticoagulants</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400&family=Outfit:wght@200;300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #070c11;
+    --surface: #0d1419;
+    --border: rgba(255,255,255,0.08);
+    --text: #f2f4f7;
+    --text-dim: rgba(242,244,247,0.72);
+    --text-muted: rgba(242,244,247,0.42);
+    --accent: #c8a96e;
+    --contrast: #f4e8c8;
+    --alert: #e05c5c;
+    --f1: #7eb8d4;
+    --f2: #8fd4b0;
+    --f3: #d4a8b0;
+    --f4: #b8a8d4;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  .scaler {
+    width: 800px; height: 600px;
+    transform-origin: top left;
+    position: absolute;
+    top: 0; left: 0;
+  }
+
+  .canvas {
+    width: 800px; height: 600px;
+    background: linear-gradient(135deg, #070c11 0%, #0d1419 100%);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Ambient glow */
+  .canvas::before {
+    content: '';
+    position: absolute;
+    top: -80px; left: -80px;
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(200,169,110,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .canvas::after {
+    content: '';
+    position: absolute;
+    bottom: -60px; right: -60px;
+    width: 260px; height: 260px;
+    background: radial-gradient(circle, rgba(224,92,92,0.05) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  /* Top bar */
+  .top-bar {
+    height: 36px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    flex-shrink: 0;
+  }
+  .series-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  .top-instruction {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+
+  /* Main area */
+  .main-area {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* Left: visual panel */
+  .visual-panel {
+    width: 340px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    position: relative;
+  }
+
+  .drug-visual {
+    width: 300px;
+    height: 320px;
+    position: relative;
+  }
+
+  /* Right: info panel */
+  .info-panel {
+    flex: 1;
+    padding: 24px 24px 16px 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .stage-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    transition: color 0.3s ease;
+  }
+
+  .drug-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 26px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.1;
+    margin-bottom: 4px;
+    transition: color 0.3s ease;
+  }
+  .drug-name em {
+    font-style: italic;
+    font-weight: 300;
+  }
+
+  .drug-subtitle {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+
+  .drug-description {
+    font-family: 'Outfit', sans-serif;
+    font-size: 11.5px;
+    font-weight: 300;
+    color: var(--text-dim);
+    line-height: 1.65;
+    margin-bottom: 14px;
+    flex: 1;
+  }
+
+  .drug-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 14px;
+  }
+
+  .tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    color: var(--text-muted);
+    transition: all 0.3s ease;
+  }
+  .tag.active-tag {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(200,169,110,0.06);
+  }
+  .tag.alert-tag {
+    border-color: rgba(224,92,92,0.4);
+    color: var(--alert);
+    background: rgba(224,92,92,0.06);
+  }
+
+  .key-fact {
+    background: rgba(255,255,255,0.03);
+    border-left: 2px solid var(--accent);
+    padding: 8px 10px;
+    margin-bottom: 14px;
+    transition: border-color 0.3s ease;
+  }
+  .key-fact.alert-fact {
+    border-left-color: var(--alert);
+    background: rgba(224,92,92,0.04);
+  }
+  .key-fact-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 0.18em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 3px;
+  }
+  .key-fact-text {
+    font-family: 'Outfit', sans-serif;
+    font-size: 10.5px;
+    font-weight: 400;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  /* Navigation */
+  .nav-area {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .nav-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.25s ease;
+    user-select: none;
+  }
+  .nav-btn:hover { 
+    border-color: rgba(255,255,255,0.18);
+    color: var(--text);
+    background: rgba(255,255,255,0.02);
+  }
+  .nav-btn.primary {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(200,169,110,0.06);
+  }
+  .nav-btn.primary:hover {
+    background: rgba(200,169,110,0.12);
+  }
+  .nav-btn.alert-btn {
+    border-color: rgba(224,92,92,0.5);
+    color: var(--alert);
+    background: rgba(224,92,92,0.06);
+  }
+  .nav-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+  }
+
+  .progress-dots {
+    display: flex;
+    gap: 5px;
+    margin: 0 4px;
+  }
+  .dot {
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--border);
+    transition: all 0.3s ease;
+  }
+  .dot.active { background: var(--accent); }
+  .dot.alert-dot { background: var(--alert); }
+
+  /* Bottom bar */
+  .bottom-bar {
+    height: 28px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    flex-shrink: 0;
+  }
+  .bottom-left {
+    font-family: 'Outfit', sans-serif;
+    font-size: 9px;
+    font-weight: 300;
+    color: var(--text-muted);
+  }
+  .bottom-right {
+    font-family: 'DM Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+
+  /* SVG drug visual animations */
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .drug-visual svg { animation: fadeIn 0.4s ease forwards; }
+
+  @keyframes pulse-ring {
+    0% { r: 18; opacity: 0.5; }
+    100% { r: 32; opacity: 0; }
+  }
+  .pulse { animation: pulse-ring 1.8s ease-out infinite; }
+
+  /* Alert frame */
+  .canvas.alert-mode {
+    outline: 1px solid rgba(224,92,92,0.25);
+  }
+  .canvas.alert-mode .series-tag::after {
+    content: ' · CAUTION';
+    color: var(--alert);
+  }
+</style>
+</head>
+<body>
+<div class="scaler" id="scaler">
+  <div class="canvas" id="canvas">
+
+    <div class="top-bar">
+      <span class="series-tag">PETAL · Insights · Treatment</span>
+      <span class="top-instruction" id="top-instruction">Select to explore</span>
+    </div>
+
+    <div class="main-area">
+      <div class="visual-panel">
+        <div class="drug-visual" id="drug-visual">
+          <!-- SVG injected by JS -->
+        </div>
+      </div>
+
+      <div class="info-panel">
+        <div>
+          <div class="stage-label" id="stage-label">Stage 01 of 05</div>
+          <div class="drug-name" id="drug-name">The <em>Anticoagulant</em></div>
+          <div class="drug-subtitle" id="drug-subtitle">Understanding the class</div>
+          <div class="drug-description" id="drug-description">
+            Anticoagulants reduce the blood's tendency to form clots. They are not thrombolytics — they do not dissolve existing clots. Instead, they suppress excessive clotting activity, slowing clot growth and preventing new ones while the body's own fibrinolytic system does its work.
+          </div>
+          <div class="drug-tags" id="drug-tags">
+            <span class="tag active-tag">Oral or IV</span>
+            <span class="tag active-tag">Preventive</span>
+            <span class="tag active-tag">Not clot-dissolving</span>
+          </div>
+          <div class="key-fact" id="key-fact">
+            <div class="key-fact-label">Key distinction</div>
+            <div class="key-fact-text" id="key-fact-text">Anticoagulants buy time — they hold the clot in place while natural fibrinolysis works. Thrombolytics, used in acute events, actively break clots down. These are different drugs with different risks.</div>
+          </div>
+        </div>
+        <div class="nav-area">
+          <button class="nav-btn" id="btn-prev" onclick="navigate(-1)" disabled>← Prev</button>
+          <div class="progress-dots" id="progress-dots"></div>
+          <button class="nav-btn primary" id="btn-next" onclick="navigate(1)">Next →</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom-bar">
+      <span class="bottom-left" id="bottom-note">For informational purposes only — consult a qualified clinician</span>
+      <span class="bottom-right">CITYNEWSSERVICE.CN · SHANGHAI CHEST HOSPITAL</span>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const stages = [
+  {
+    label: 'Stage 01 of 05',
+    name: 'The <em>Anticoagulant</em>',
+    subtitle: 'Understanding the class',
+    description: 'Anticoagulants reduce the blood\'s tendency to form clots. They are not thrombolytics — they do not dissolve existing clots. Instead, they suppress excessive clotting activity, slowing clot growth and preventing new ones while the body\'s own fibrinolytic system does its work.',
+    tags: [
+      { text: 'Oral or IV', type: 'active-tag' },
+      { text: 'Preventive', type: 'active-tag' },
+      { text: 'Not clot-dissolving', type: 'active-tag' },
+    ],
+    factLabel: 'Key distinction',
+    factText: 'Anticoagulants buy time — they hold the clot in place while natural fibrinolysis works. Thrombolytics, used in acute events, actively break clots down. These are different drugs with different risks.',
+    alert: false,
+    instruction: 'Navigate to explore each class',
+    color: '#7eb8d4',
+    svgKey: 'overview'
+  },
+  {
+    label: 'Stage 02 of 05',
+    name: '<em>Heparin</em>',
+    subtitle: 'The emergency option',
+    description: 'Unfractionated heparin is given intravenously and acts immediately — making it the first-line choice in acute settings. Its effect varies between patients, requiring close monitoring via aPTT (a clotting-time blood test) and dose adjustment. Low-molecular-weight heparin, injected under the skin, has a more predictable effect and is given once or twice daily without frequent monitoring.',
+    tags: [
+      { text: 'IV or subcutaneous', type: 'active-tag' },
+      { text: 'Rapid onset', type: 'active-tag' },
+      { text: 'Hospital use', type: 'active-tag' },
+      { text: 'Monitoring required (UFH)', type: '' },
+    ],
+    factLabel: 'Clinical note',
+    factText: 'LMWH (low-molecular-weight heparin) is now preferred for most prophylaxis and treatment scenarios. UFH (unfractionated heparin) is reserved for cases requiring rapid reversibility or in renal impairment.',
+    alert: false,
+    instruction: 'Stage 2 of 5',
+    color: '#7eb8d4',
+    svgKey: 'heparin'
+  },
+  {
+    label: 'Stage 03 of 05',
+    name: '<em>Warfarin</em>',
+    subtitle: 'The experienced veteran',
+    description: 'Warfarin is a classic oral anticoagulant used for decades. Its effect depends on vitamin K activity — found in green vegetables, liver, and many drugs — meaning the effective dose shifts constantly with diet and co-medications. Requires regular INR (International Normalized Ratio) monitoring. Therapeutic range: INR 2.0–3.0 for most indications.',
+    tags: [
+      { text: 'Oral', type: 'active-tag' },
+      { text: 'INR monitoring', type: '' },
+      { text: 'Vitamin K sensitive', type: '' },
+      { text: 'Many drug interactions', type: '' },
+    ],
+    factLabel: 'Practical rule',
+    factText: 'Consistency matters more than elimination. Patients on warfarin can eat spinach and broccoli — they just need to keep intake stable from day to day. Sudden large swings in vitamin K move the INR more than steady moderate consumption.',
+    alert: false,
+    instruction: 'Stage 3 of 5',
+    color: '#d4a8b0',
+    svgKey: 'warfarin'
+  },
+  {
+    label: 'Stage 04 of 05',
+    name: '<em>NOACs</em>',
+    subtitle: 'Novel oral anticoagulants',
+    description: 'Rivaroxaban, edoxaban, dabigatran — the modern class. Fixed dosing, no routine blood monitoring, predictable effect, few food interactions. Most require renal function monitoring since clearance is kidney-dependent. The short half-life means a missed dose noticeably reduces protection within 24–48 hours.',
+    tags: [
+      { text: 'Oral', type: 'active-tag' },
+      { text: 'Fixed dose', type: 'active-tag' },
+      { text: 'No dietary restriction', type: 'active-tag' },
+      { text: 'Renal monitoring', type: '' },
+    ],
+    factLabel: 'Practical note',
+    factText: 'Some NOACs require food for absorption — notably the 20mg dose of rivaroxaban. Take it with a meal. Do not stop or adjust dose without medical guidance; the protective effect drops off faster than with warfarin.',
+    alert: false,
+    instruction: 'Stage 4 of 5',
+    color: '#8fd4b0',
+    svgKey: 'noac'
+  },
+  {
+    label: 'Stage 05 of 05',
+    name: 'The <em>Risk</em>',
+    subtitle: 'Anticoagulants are double-edged',
+    description: 'All anticoagulants increase bleeding risk. This is not a manageable side effect — it is the mechanism\'s direct consequence. Warning signs require immediate attention. Every clinician a patient sees must know they are anticoagulated before any procedure, including dental work.',
+    tags: [
+      { text: 'Bleeding risk', type: 'alert-tag' },
+      { text: 'Disclose to all providers', type: 'alert-tag' },
+      { text: 'Seek help immediately', type: 'alert-tag' },
+    ],
+    factLabel: 'Warning signs',
+    factText: 'Unexplained large bruises · Persistent gum or nosebleeds · Pink, red, or dark urine · Black or tarry stools · Sudden severe headache with visual changes. Any of these: seek medical attention immediately.',
+    alert: true,
+    instruction: 'Know the warning signs',
+    color: '#e05c5c',
+    svgKey: 'warning'
+  }
+];
+
+let current = 0;
+
+function getSVG(key, color) {
+  const c = color || '#7eb8d4';
+  const svgs = {
+    overview: `<svg viewBox="0 0 300 320" xmlns="http://www.w3.org/2000/svg">
+      <!-- Central clot representation with fibrin mesh -->
+      <defs>
+        <radialGradient id="og1" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="${c}" stop-opacity="0.15"/>
+          <stop offset="100%" stop-color="${c}" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <ellipse cx="150" cy="145" rx="90" ry="90" fill="url(#og1)"/>
+      <!-- Vessel silhouette -->
+      <path d="M60 95 Q80 100 90 145 Q80 190 60 195" stroke="rgba(242,244,247,0.12)" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <path d="M240 95 Q220 100 210 145 Q220 190 240 195" stroke="rgba(242,244,247,0.12)" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <!-- Fibrin mesh lines -->
+      <line x1="115" y1="125" x2="145" y2="155" stroke="${c}" stroke-width="1" stroke-opacity="0.5"/>
+      <line x1="145" y1="125" x2="115" y2="155" stroke="${c}" stroke-width="1" stroke-opacity="0.5"/>
+      <line x1="155" y1="125" x2="185" y2="155" stroke="${c}" stroke-width="1" stroke-opacity="0.5"/>
+      <line x1="185" y1="125" x2="155" y2="155" stroke="${c}" stroke-width="1" stroke-opacity="0.5"/>
+      <line x1="115" y1="155" x2="185" y2="135" stroke="${c}" stroke-width="1" stroke-opacity="0.35"/>
+      <!-- Central node -->
+      <circle cx="150" cy="145" r="18" fill="none" stroke="${c}" stroke-width="1.5" stroke-opacity="0.7"/>
+      <circle cx="150" cy="145" r="8" fill="${c}" fill-opacity="0.4"/>
+      <!-- Pulse ring static -->
+      <circle cx="150" cy="145" r="26" fill="none" stroke="${c}" stroke-width="1" stroke-opacity="0.25"/>
+      <!-- Label -->
+      <text x="150" y="230" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="rgba(242,244,247,0.4)" letter-spacing="0.15em">FIBRIN MESH</text>
+      <!-- Three arrows indicating suppression -->
+      <line x1="95" y1="90" x2="120" y2="118" stroke="${c}" stroke-width="1" stroke-opacity="0.4" stroke-dasharray="3,4"/>
+      <line x1="150" y1="70" x2="150" y2="108" stroke="${c}" stroke-width="1" stroke-opacity="0.4" stroke-dasharray="3,4"/>
+      <line x1="205" y1="90" x2="180" y2="118" stroke="${c}" stroke-width="1" stroke-opacity="0.4" stroke-dasharray="3,4"/>
+      <text x="88" y="85" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="${c}" fill-opacity="0.6" letter-spacing="0.1em">SUPPRESS</text>
+      <text x="150" y="65" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="${c}" fill-opacity="0.6" letter-spacing="0.1em">SLOW</text>
+      <text x="215" y="85" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="${c}" fill-opacity="0.6" letter-spacing="0.1em">PREVENT</text>
+    </svg>`,
+
+    heparin: `<svg viewBox="0 0 300 320" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="hg1" cx="50%" cy="40%" r="50%">
+          <stop offset="0%" stop-color="${c}" stop-opacity="0.12"/>
+          <stop offset="100%" stop-color="${c}" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <ellipse cx="150" cy="130" rx="80" ry="80" fill="url(#hg1)"/>
+      <!-- IV drip bag shape -->
+      <rect x="120" y="45" width="60" height="75" rx="8" fill="none" stroke="${c}" stroke-width="1.5" stroke-opacity="0.6"/>
+      <rect x="122" y="47" width="56" height="71" rx="6" fill="${c}" fill-opacity="0.06"/>
+      <!-- Liquid level in bag -->
+      <rect x="122" y="78" width="56" height="40" rx="0" fill="${c}" fill-opacity="0.12"/>
+      <line x1="122" y1="78" x2="178" y2="78" stroke="${c}" stroke-width="1" stroke-opacity="0.4"/>
+      <!-- Drip chamber -->
+      <line x1="150" y1="120" x2="150" y2="136" stroke="${c}" stroke-width="1.5" stroke-opacity="0.6"/>
+      <rect x="140" y="136" width="20" height="24" rx="3" fill="none" stroke="${c}" stroke-width="1.2" stroke-opacity="0.5"/>
+      <!-- Drip line -->
+      <line x1="150" y1="160" x2="150" y2="200" stroke="${c}" stroke-width="1.5" stroke-opacity="0.5" stroke-dasharray="2,3"/>
+      <!-- Needle tip -->
+      <path d="M144 200 L150 214 L156 200" fill="none" stroke="${c}" stroke-width="1.2" stroke-opacity="0.5"/>
+      <!-- UFH label -->
+      <text x="150" y="68" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="${c}" fill-opacity="0.7" letter-spacing="0.1em">UFH</text>
+      <!-- Subcutaneous syringe (LMWH) -->
+      <rect x="195" y="155" width="52" height="14" rx="4" fill="none" stroke="rgba(242,244,247,0.2)" stroke-width="1.2"/>
+      <rect x="197" y="157" width="32" height="10" rx="2" fill="rgba(142,212,176,0.15)"/>
+      <path d="M247 162 L260 162" stroke="rgba(242,244,247,0.2)" stroke-width="1.5" stroke-linecap="round"/>
+      <path d="M258 159 L265 162 L258 165" fill="none" stroke="rgba(142,212,176,0.5)" stroke-width="1.2"/>
+      <text x="220" y="148" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="rgba(142,212,176,0.6)" letter-spacing="0.1em">LMWH</text>
+      <!-- Rapid onset indicator -->
+      <text x="150" y="240" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="rgba(242,244,247,0.35)" letter-spacing="0.15em">RAPID ONSET</text>
+      <!-- Small aPTT label -->
+      <text x="95" y="180" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="rgba(242,244,247,0.28)" letter-spacing="0.08em">aPTT MONITOR</text>
+    </svg>`,
+
+    warfarin: `<svg viewBox="0 0 300 320" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="wg1" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="${c}" stop-opacity="0.1"/>
+          <stop offset="100%" stop-color="${c}" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <ellipse cx="150" cy="155" rx="85" ry="85" fill="url(#wg1)"/>
+      <!-- Pill -->
+      <ellipse cx="150" cy="110" rx="32" ry="16" fill="none" stroke="${c}" stroke-width="1.5" stroke-opacity="0.65"/>
+      <ellipse cx="150" cy="110" rx="30" ry="14" fill="${c}" fill-opacity="0.09"/>
+      <line x1="118" y1="110" x2="182" y2="110" stroke="${c}" stroke-width="1" stroke-opacity="0.4"/>
+      <!-- INR gauge arc -->
+      <path d="M80 200 A 70 70 0 0 1 220 200" fill="none" stroke="rgba(242,244,247,0.1)" stroke-width="8" stroke-linecap="round"/>
+      <!-- Danger zone left (too low) -->
+      <path d="M80 200 A 70 70 0 0 1 105 145" fill="none" stroke="rgba(224,92,92,0.35)" stroke-width="8" stroke-linecap="round"/>
+      <!-- Safe zone middle -->
+      <path d="M105 145 A 70 70 0 0 1 195 145" fill="none" stroke="${c}" stroke-width="8" stroke-linecap="round" stroke-opacity="0.5"/>
+      <!-- Danger zone right (too high) -->
+      <path d="M195 145 A 70 70 0 0 1 220 200" fill="none" stroke="rgba(224,92,92,0.35)" stroke-width="8" stroke-linecap="round"/>
+      <!-- Needle in safe zone -->
+      <line x1="150" y1="200" x2="148" y2="148" stroke="rgba(242,244,247,0.7)" stroke-width="1.5" stroke-linecap="round"/>
+      <circle cx="150" cy="200" r="4" fill="rgba(242,244,247,0.5)"/>
+      <!-- INR labels -->
+      <text x="72" y="218" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="rgba(224,92,92,0.6)" letter-spacing="0.05em">&lt;1.8</text>
+      <text x="150" y="125" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="${c}" fill-opacity="0.8" letter-spacing="0.08em">2.0–3.0</text>
+      <text x="228" y="218" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="rgba(224,92,92,0.6)" letter-spacing="0.05em">&gt;3.0</text>
+      <text x="150" y="255" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="rgba(242,244,247,0.35)" letter-spacing="0.15em">INR RANGE</text>
+      <!-- Vitamin K leaf icon suggestion -->
+      <path d="M60 80 Q65 65 75 70 Q70 80 60 80" fill="${c}" fill-opacity="0.2"/>
+      <path d="M55 85 Q45 72 55 68 Q60 78 55 85" fill="${c}" fill-opacity="0.15"/>
+      <text x="60" y="100" text-anchor="middle" font-family="DM Mono, monospace" font-size="7" fill="${c}" fill-opacity="0.5" letter-spacing="0.05em">VIT. K</text>
+    </svg>`,
+
+    noac: `<svg viewBox="0 0 300 320" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="ng1" cx="50%" cy="40%" r="50%">
+          <stop offset="0%" stop-color="${c}" stop-opacity="0.12"/>
+          <stop offset="100%" stop-color="${c}" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <ellipse cx="150" cy="130" rx="80" ry="80" fill="url(#ng1)"/>
+      <!-- Three NOAC pills -->
+      <ellipse cx="100" cy="105" rx="26" ry="13" fill="none" stroke="${c}" stroke-width="1.5" stroke-opacity="0.65"/>
+      <ellipse cx="100" cy="105" rx="24" ry="11" fill="${c}" fill-opacity="0.09"/>
+      <text x="100" y="109" text-anchor="middle" font-family="DM Mono, monospace" font-size="7" fill="${c}" fill-opacity="0.7" letter-spacing="0.05em">RIVARO</text>
+      <ellipse cx="155" cy="85" rx="26" ry="13" fill="none" stroke="${c}" stroke-width="1.5" stroke-opacity="0.55"/>
+      <ellipse cx="155" cy="85" rx="24" ry="11" fill="${c}" fill-opacity="0.07"/>
+      <text x="155" y="89" text-anchor="middle" font-family="DM Mono, monospace" font-size="7" fill="${c}" fill-opacity="0.6" letter-spacing="0.05em">EDOXA</text>
+      <ellipse cx="205" cy="108" rx="26" ry="13" fill="none" stroke="${c}" stroke-width="1.5" stroke-opacity="0.55"/>
+      <ellipse cx="205" cy="108" rx="24" ry="11" fill="${c}" fill-opacity="0.07"/>
+      <text x="205" y="112" text-anchor="middle" font-family="DM Mono, monospace" font-size="7" fill="${c}" fill-opacity="0.6" letter-spacing="0.05em">DABIG</text>
+      <!-- Checkmark benefits -->
+      <line x1="78" y1="150" x2="86" y2="160" stroke="${c}" stroke-width="1.5" stroke-opacity="0.6" stroke-linecap="round"/>
+      <line x1="86" y1="160" x2="102" y2="142" stroke="${c}" stroke-width="1.5" stroke-opacity="0.6" stroke-linecap="round"/>
+      <text x="112" y="158" font-family="Outfit, sans-serif" font-size="10" fill="rgba(242,244,247,0.5)" font-weight="300">Fixed dose</text>
+      <line x1="78" y1="172" x2="86" y2="182" stroke="${c}" stroke-width="1.5" stroke-opacity="0.6" stroke-linecap="round"/>
+      <line x1="86" y1="182" x2="102" y2="164" stroke="${c}" stroke-width="1.5" stroke-opacity="0.6" stroke-linecap="round"/>
+      <text x="112" y="180" font-family="Outfit, sans-serif" font-size="10" fill="rgba(242,244,247,0.5)" font-weight="300">No dietary restriction</text>
+      <line x1="78" y1="194" x2="86" y2="204" stroke="${c}" stroke-width="1.5" stroke-opacity="0.6" stroke-linecap="round"/>
+      <line x1="86" y1="204" x2="102" y2="186" stroke="${c}" stroke-width="1.5" stroke-opacity="0.6" stroke-linecap="round"/>
+      <text x="112" y="202" font-family="Outfit, sans-serif" font-size="10" fill="rgba(242,244,247,0.5)" font-weight="300">Predictable effect</text>
+      <!-- Kidney icon -->
+      <path d="M195 185 Q185 178 185 190 Q185 200 195 198 Q205 200 205 190 Q205 178 195 185" fill="none" stroke="rgba(242,244,247,0.25)" stroke-width="1.5"/>
+      <text x="215" y="193" font-family="DM Mono, monospace" font-size="7" fill="rgba(242,244,247,0.3)" letter-spacing="0.05em">RENAL</text>
+      <text x="150" y="245" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="rgba(242,244,247,0.35)" letter-spacing="0.15em">MODERN CLASS</text>
+    </svg>`,
+
+    warning: `<svg viewBox="0 0 300 320" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="ag1" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#e05c5c" stop-opacity="0.15"/>
+          <stop offset="100%" stop-color="#e05c5c" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <ellipse cx="150" cy="150" rx="95" ry="95" fill="url(#ag1)"/>
+      <!-- Alert triangle -->
+      <path d="M150 65 L230 195 L70 195 Z" fill="none" stroke="#e05c5c" stroke-width="1.5" stroke-opacity="0.55" stroke-linejoin="round"/>
+      <path d="M150 75 L220 187 L80 187 Z" fill="#e05c5c" fill-opacity="0.05"/>
+      <!-- Exclamation -->
+      <line x1="150" y1="108" x2="150" y2="158" stroke="#e05c5c" stroke-width="3" stroke-opacity="0.7" stroke-linecap="round"/>
+      <circle cx="150" cy="172" r="4" fill="#e05c5c" fill-opacity="0.7"/>
+      <!-- Pulse ring animated -->
+      <circle cx="150" cy="150" r="18" fill="none" stroke="#e05c5c" stroke-width="1" stroke-opacity="0.5" class="pulse"/>
+      <!-- Warning items below -->
+      <line x1="72" y1="218" x2="228" y2="218" stroke="rgba(224,92,92,0.2)" stroke-width="1"/>
+      <circle cx="80" cy="232" r="3" fill="#e05c5c" fill-opacity="0.5"/>
+      <text x="90" y="236" font-family="Outfit, sans-serif" font-size="9.5" fill="rgba(224,92,92,0.65)" font-weight="300">Unusual bleeding or bruising</text>
+      <circle cx="80" cy="250" r="3" fill="#e05c5c" fill-opacity="0.5"/>
+      <text x="90" y="254" font-family="Outfit, sans-serif" font-size="9.5" fill="rgba(224,92,92,0.65)" font-weight="300">Blood in urine or black stools</text>
+      <circle cx="80" cy="268" r="3" fill="#e05c5c" fill-opacity="0.5"/>
+      <text x="90" y="272" font-family="Outfit, sans-serif" font-size="9.5" fill="rgba(224,92,92,0.65)" font-weight="300">Sudden severe headache</text>
+      <text x="150" y="296" text-anchor="middle" font-family="DM Mono, monospace" font-size="8" fill="rgba(224,92,92,0.45)" letter-spacing="0.12em">SEEK HELP IMMEDIATELY</text>
+    </svg>`
+  };
+  return svgs[key] || svgs.overview;
+}
+
+function renderDots() {
+  const container = document.getElementById('progress-dots');
+  container.innerHTML = '';
+  stages.forEach((s, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === current ? (s.alert ? ' alert-dot' : ' active') : '');
+    container.appendChild(d);
+  });
+}
+
+function render() {
+  const s = stages[current];
+  document.getElementById('stage-label').textContent = s.label;
+  document.getElementById('drug-name').innerHTML = s.name;
+  document.getElementById('drug-subtitle').textContent = s.subtitle;
+  document.getElementById('drug-description').textContent = s.description;
+  document.getElementById('top-instruction').textContent = s.instruction;
+  
+  const tagsEl = document.getElementById('drug-tags');
+  tagsEl.innerHTML = s.tags.map(t => `<span class="tag ${t.type}">${t.text}</span>`).join('');
+  
+  const kf = document.getElementById('key-fact');
+  kf.className = 'key-fact' + (s.alert ? ' alert-fact' : '');
+  document.getElementById('key-fact-text').textContent = s.factText;
+  document.querySelector('.key-fact-label').textContent = s.factLabel;
+  
+  document.getElementById('drug-visual').innerHTML = getSVG(s.svgKey, s.color);
+  
+  const canvas = document.getElementById('canvas');
+  canvas.className = 'canvas' + (s.alert ? ' alert-mode' : '');
+  
+  const nextBtn = document.getElementById('btn-next');
+  if (s.alert) {
+    nextBtn.className = 'nav-btn alert-btn';
+    nextBtn.textContent = 'Restart ↺';
+  } else {
+    nextBtn.className = 'nav-btn primary';
+    nextBtn.textContent = 'Next →';
+  }
+  
+  document.getElementById('btn-prev').disabled = current === 0;
+  renderDots();
+}
+
+function navigate(dir) {
+  if (dir === 1 && current === stages.length - 1) {
+    current = 0;
+  } else {
+    current = Math.max(0, Math.min(stages.length - 1, current + dir));
+  }
+  render();
+}
+
+function scaleToFit() {
+  const scaler = document.getElementById('scaler');
+  const scaleX = window.innerWidth / 800;
+  const scaleY = window.innerHeight / 600;
+  const scale = Math.min(scaleX, scaleY);
+  scaler.style.transform = `scale(${scale})`;
+  scaler.style.left = ((window.innerWidth - 800 * scale) / 2) + 'px';
+  scaler.style.top = ((window.innerHeight - 600 * scale) / 2) + 'px';
+}
+
+scaleToFit();
+window.addEventListener('resize', scaleToFit);
+render();
+</script>
+</body>
+</html>
