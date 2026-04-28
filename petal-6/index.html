@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PETAL Insights | Anticoagulation Balance</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400&family=Outfit:wght@200;300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#070c11; --surface:#0d1419; --border:rgba(255,255,255,0.08);
+  --text:#f2f4f7; --dim:rgba(242,244,247,0.72); --muted:rgba(242,244,247,0.42);
+  --gold:#c8a96e; --blue:#7eb8d4; --green:#8fd4b0; --rose:#d4a8b0; --red:#e05c5c; --orange:#e09050;
+}
+* { box-sizing:border-box; }
+html, body { margin:0; width:100%; height:100%; overflow:hidden; background:var(--bg); }
+body { font-family:Outfit, sans-serif; color:var(--text); }
+.scaler { width:800px; height:600px; transform-origin:top left; position:absolute; top:0; left:0; }
+.canvas {
+  width:800px; height:600px; position:relative; overflow:hidden;
+  background:
+    radial-gradient(circle at 18% 20%, rgba(200,169,110,0.10), transparent 34%),
+    radial-gradient(circle at 76% 72%, rgba(224,92,92,0.08), transparent 38%),
+    linear-gradient(135deg,#070c11,#0d1419);
+}
+.top, .bottom { position:absolute; left:28px; right:28px; display:flex; align-items:center; justify-content:space-between; font-family:"DM Mono", monospace; letter-spacing:.18em; font-size:9px; }
+.top { top:18px; padding-bottom:12px; border-bottom:1px solid var(--border); }
+.bottom { bottom:18px; padding-top:12px; border-top:1px solid var(--border); color:var(--muted); }
+.tag, .brand { color:var(--gold); }
+.title { position:absolute; top:58px; left:28px; right:28px; text-align:center; font-family:"Cormorant Garamond", serif; font-size:30px; font-weight:600; }
+.stage { position:absolute; left:28px; top:112px; width:476px; height:392px; border:1px solid var(--border); background:rgba(13,20,25,0.46); }
+.panel { position:absolute; right:28px; top:112px; width:240px; height:392px; border:1px solid var(--border); background:rgba(13,20,25,0.64); padding:22px; }
+.kicker { font-family:"DM Mono", monospace; font-size:9px; letter-spacing:.18em; color:var(--gold); text-transform:uppercase; }
+.panel h2 { font-family:"Cormorant Garamond", serif; font-size:27px; line-height:1.02; font-weight:600; margin:16px 0 12px; }
+.panel p { font-size:12px; line-height:1.52; color:var(--dim); font-weight:300; margin:0 0 14px; }
+.fact { border-left:3px solid var(--gold); padding:9px 0 9px 12px; font-size:11px; color:var(--dim); line-height:1.45; }
+.buttons { position:absolute; left:28px; right:28px; bottom:64px; display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+button { height:42px; border:1px solid var(--border); background:rgba(255,255,255,0.02); color:var(--muted); font-family:"DM Mono", monospace; font-size:9px; letter-spacing:.14em; cursor:pointer; }
+button.active { color:var(--text); border-color:rgba(200,169,110,0.48); background:rgba(200,169,110,0.08); }
+button.alert.active { border-color:rgba(224,92,92,0.62); background:rgba(224,92,92,0.08); color:#fff; }
+svg { width:100%; height:100%; }
+.node text { font-family:"DM Mono", monospace; font-size:9px; letter-spacing:.12em; }
+.ring { fill:none; stroke:var(--gold); opacity:.4; }
+@keyframes pulse { 0%{r:16;opacity:.55} 100%{r:42;opacity:0} }
+.pulse-ring { animation:pulse 1.8s infinite; }
+</style>
+</head>
+<body>
+<div class="scaler" id="scaler">
+  <div class="canvas">
+    <div class="top"><span class="tag">PETAL · INSIGHTS</span><span>TREATMENT</span></div>
+    <div class="title">The Clot Fight Is a <em style="color:var(--gold);font-style:italic;">Balancing Act</em></div>
+    <div class="stage">
+      <svg viewBox="0 0 476 392">
+        <defs>
+          <filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+        <path d="M80 190 C150 110, 250 110, 396 190 C250 270, 150 270, 80 190Z" fill="none" stroke="rgba(126,184,212,.32)" stroke-width="9" stroke-linecap="round"/>
+        <path d="M94 190 C158 132, 246 132, 382 190 C246 248, 158 248, 94 190Z" fill="none" stroke="rgba(143,212,176,.26)" stroke-width="2"/>
+        <line x1="238" y1="70" x2="238" y2="312" stroke="rgba(255,255,255,.10)" stroke-dasharray="3 6"/>
+        <line x1="60" y1="190" x2="416" y2="190" stroke="rgba(255,255,255,.10)" stroke-dasharray="3 6"/>
+        <g id="clot" filter="url(#glow)">
+          <ellipse cx="238" cy="190" rx="25" ry="15" fill="rgba(224,92,92,.30)" stroke="#e05c5c" stroke-width="1.5"/>
+          <circle id="pulse" class="pulse-ring" cx="238" cy="190" r="18" fill="none" stroke="#e05c5c" stroke-width="1.5"/>
+        </g>
+        <g id="meter">
+          <text x="56" y="54" fill="rgba(242,244,247,.42)" font-family="DM Mono" font-size="9" letter-spacing="2">CLOT RISK</text>
+          <rect x="56" y="68" width="150" height="8" rx="4" fill="rgba(255,255,255,.08)"/>
+          <rect id="riskbar" x="56" y="68" width="80" height="8" rx="4" fill="#c8a96e"/>
+          <text x="270" y="54" fill="rgba(242,244,247,.42)" font-family="DM Mono" font-size="9" letter-spacing="2">BLEEDING RISK</text>
+          <rect x="270" y="68" width="150" height="8" rx="4" fill="rgba(255,255,255,.08)"/>
+          <rect id="bleedbar" x="270" y="68" width="42" height="8" rx="4" fill="#7eb8d4"/>
+        </g>
+        <g id="labels"></g>
+      </svg>
+    </div>
+    <div class="panel">
+      <div class="kicker" id="kicker">01 · PRIMARY PREVENTION</div>
+      <h2 id="headline">Lower the odds before anything forms.</h2>
+      <p id="bodycopy">Blood pressure, blood sugar, cholesterol, smoking, and long stillness all change the terrain. Prevention makes the vessel less inviting to a clot.</p>
+      <div class="fact" id="fact">Best outcome: no heroic rescue, because the clot never gets started.</div>
+    </div>
+    <div class="buttons">
+      <button class="active" data-stage="0">01 PREVENT</button>
+      <button data-stage="1">02 ANTICOAGULATE</button>
+      <button data-stage="2">03 WATCH</button>
+      <button class="alert" data-stage="3">04 FOLLOW UP</button>
+    </div>
+    <div class="bottom"><span>For education only, not a substitute for medical evaluation.</span><span class="brand">CITYNEWSSERVICE.CN</span></div>
+  </div>
+</div>
+<script>
+const stages = [
+  {k:"01 · PRIMARY PREVENTION", h:"Lower the odds before anything forms.", b:"Blood pressure, blood sugar, cholesterol, smoking, and long stillness all change the terrain. Prevention makes the vessel less inviting to a clot.", f:"Best outcome: no heroic rescue, because the clot never gets started.", risk:58, bleed:28, color:"#c8a96e", clot:.22},
+  {k:"02 · ANTICOAGULATION", h:"Reduce clotting, but do not erase it.", b:"Anticoagulants interrupt the clotting cascade. They buy time for the body to break down clots and reduce the chance of new ones.", f:"They are not clot dissolvers. They are control systems.", risk:34, bleed:48, color:"#8fd4b0", clot:.14},
+  {k:"03 · SAFETY MONITORING", h:"The same medicine has two edges.", b:"Warfarin needs INR checks. NOACs need correct dosing and kidney-function review. Every patient needs clear bleeding warnings.", f:"Too little invites recurrence. Too much invites bleeding.", risk:42, bleed:66, color:"#e09050", clot:.18},
+  {k:"04 · LONG-TERM FOLLOW-UP", h:"The event ends before the care does.", b:"After DVT or pulmonary embolism, follow-up sets duration, checks recurrence risk, and manages long-term leg symptoms.", f:"The art is balance, updated over time.", risk:48, bleed:54, color:"#e05c5c", clot:.26}
+];
+function drawLabels(s) {
+  const labels = document.getElementById("labels");
+  labels.innerHTML = "";
+  const items = [
+    [82,326,"VESSEL WALL"],
+    [242,326,"FLOW"],
+    [358,326,"CLOTTING TENDENCY"]
+  ];
+  items.forEach((it,i)=>{
+    const g=document.createElementNS("http://www.w3.org/2000/svg","g");
+    g.setAttribute("class","node");
+    const c=document.createElementNS("http://www.w3.org/2000/svg","circle");
+    c.setAttribute("cx",it[0]); c.setAttribute("cy",it[1]); c.setAttribute("r",15);
+    c.setAttribute("fill", i===s ? "rgba(200,169,110,.12)" : "rgba(255,255,255,.03)");
+    c.setAttribute("stroke", i===s ? stages[s].color : "rgba(255,255,255,.12)");
+    const t=document.createElementNS("http://www.w3.org/2000/svg","text");
+    t.setAttribute("x",it[0]); t.setAttribute("y",it[1]+34); t.setAttribute("fill", i===s ? stages[s].color : "rgba(242,244,247,.42)"); t.setAttribute("text-anchor","middle");
+    t.textContent=it[2]; g.append(c,t); labels.append(g);
+  });
+}
+function setStage(i) {
+  const s=stages[i];
+  document.getElementById("kicker").textContent=s.k;
+  document.getElementById("headline").textContent=s.h;
+  document.getElementById("bodycopy").textContent=s.b;
+  document.getElementById("fact").textContent=s.f;
+  document.getElementById("riskbar").setAttribute("width",s.risk*1.5);
+  document.getElementById("riskbar").setAttribute("fill",s.color);
+  document.getElementById("bleedbar").setAttribute("width",s.bleed*1.5);
+  document.getElementById("bleedbar").setAttribute("fill",i===3?"#e05c5c":(i===2?"#e09050":"#7eb8d4"));
+  document.getElementById("clot").style.opacity = .55 + s.clot;
+  document.querySelectorAll("button").forEach((b,idx)=>b.classList.toggle("active",idx===i));
+  drawLabels(Math.min(i,2));
+}
+document.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>setStage(+b.dataset.stage)));
+function scaleToFit() {
+  const scaler = document.getElementById('scaler');
+  const scaleX = window.innerWidth / 800;
+  const scaleY = window.innerHeight / 600;
+  const scale = Math.min(scaleX, scaleY);
+  scaler.style.transform = `scale(${scale})`;
+  scaler.style.left = ((window.innerWidth - 800 * scale) / 2) + 'px';
+  scaler.style.top = ((window.innerHeight - 600 * scale) / 2) + 'px';
+}
+setStage(0); scaleToFit(); window.addEventListener('resize', scaleToFit);
+</script>
+</body>
+</html>
